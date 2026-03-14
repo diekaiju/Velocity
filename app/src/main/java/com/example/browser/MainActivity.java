@@ -93,6 +93,17 @@ public class MainActivity extends AppCompatActivity {
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
+        settings.setDatabaseEnabled(true);
+        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        settings.setAllowFileAccess(true);
+        settings.setAllowContentAccess(true);
+        settings.setSupportMultipleWindows(true);
+        settings.setJavaScriptCanOpenWindowsAutomatically(true);
+        
+        // App cache and path (automatic in newer versions, but good for compatibility)
+        webView.setFocusable(true);
+        webView.setFocusableInTouchMode(true);
+        
         settings.setBuiltInZoomControls(true);
         settings.setDisplayZoomControls(false);
 
