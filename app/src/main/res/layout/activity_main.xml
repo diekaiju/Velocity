@@ -131,6 +131,16 @@
                 android:tint="@color/browser_text_primary"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="New Tab" />
+
+            <ImageButton
+                android:id="@+id/btnCloseTab"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:tint="@color/browser_text_primary"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Close Tab" />
         </LinearLayout>
     </LinearLayout>
 
