@@ -30,6 +30,6 @@ extern "C" JNIEXPORT jstring JNICALL
 Java_com_example_browser_MainActivity_getBrowserName(
         JNIEnv* env,
         jobject /* this */) {
-    std::string name = "Antigravity Chrome-like Browser";
+    std::string name = "Velocity Browser";
     return env->NewStringUTF(name.c_str());
 }
