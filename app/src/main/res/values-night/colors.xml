@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="browser_toolbar_bg">#202124</color>
+    <color name="browser_address_bar_bg">#35363A</color>
+    <color name="browser_control_bar_bg">#202124</color>
+    <color name="browser_text_primary">#E8EAED</color>
+    <color name="browser_address_bar_stroke">#5F6368</color>
+</resources>

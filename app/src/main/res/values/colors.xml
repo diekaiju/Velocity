@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="browser_toolbar_bg">#F1F3F4</color>
+    <color name="browser_address_bar_bg">#FFFFFF</color>
+    <color name="browser_control_bar_bg">#FFFFFF</color>
+    <color name="browser_text_primary">#202124</color>
+    <color name="browser_address_bar_stroke">#DADCE0</color>
+</resources>
