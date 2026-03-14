@@ -40,7 +40,7 @@ public class MainActivity extends AppCompatActivity {
     private TabLayout tabLayout;
     private EditText urlInput;
     private ProgressBar progressBar;
-    private ImageButton btnBack, btnForward, btnHome, btnRefresh, btnGo, btnNewTab;
+    private ImageButton btnBack, btnForward, btnHome, btnRefresh, btnGo, btnNewTab, btnCloseTab;
 
     private List<WebView> tabList = new ArrayList<>();
     private WebView currentWebView;
@@ -61,6 +61,7 @@ public class MainActivity extends AppCompatActivity {
         btnRefresh = findViewById(R.id.btnRefresh);
         btnGo = findViewById(R.id.btnGo);
         btnNewTab = findViewById(R.id.btnNewTab);
+        btnCloseTab = findViewById(R.id.btnCloseTab);
 
         setupListeners();
 
@@ -168,6 +169,8 @@ public class MainActivity extends AppCompatActivity {
 
         btnNewTab.setOnClickListener(v -> createNewTab("https://www.google.com"));
 
+        btnCloseTab.setOnClickListener(v -> closeCurrentTab());
+
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
@@ -180,6 +183,25 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onTabReselected(TabLayout.Tab tab) {}
         });
+    }
+
+    private void closeCurrentTab() {
+        if (tabList.size() <= 1) {
+            // If only one tab, just reset it to home
+            if (currentWebView != null) {
+                currentWebView.loadUrl("https://www.google.com");
+            }
+            return;
+        }
+
+        int currentPosition = tabLayout.getSelectedTabPosition();
+        if (currentPosition != -1) {
+            WebView webViewToRemove = tabList.remove(currentPosition);
+            webViewToRemove.destroy(); // Clean up memory
+            tabLayout.removeTabAt(currentPosition);
+
+            // TabLayout automatically selects the next available tab
+        }
     }
 
     private void switchToTab(int position) {
