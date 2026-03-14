@@ -14,6 +14,8 @@ import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.Toast;
+import android.content.Intent;
+import android.net.Uri;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.webkit.WebSettingsCompat;
@@ -65,8 +67,8 @@ public class MainActivity extends AppCompatActivity {
 
         setupListeners();
 
-        // Create initial tab
-        createNewTab("https://www.google.com");
+        // Check for incoming intent
+        handleIntent(getIntent());
         
         // Show browser name from native
         Toast.makeText(this, "Welcome to " + getBrowserName(), Toast.LENGTH_SHORT).show();
@@ -141,6 +143,21 @@ public class MainActivity extends AppCompatActivity {
                     progressBar.setVisibility(View.GONE);
                     updateButtons();
                 }
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                if (url.startsWith("http://") || url.startsWith("https://")) {
+                    return false;
+                }
+                
+                try {
+                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                    startActivity(intent);
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "No app found to handle this link", Toast.LENGTH_SHORT).show();
+                }
+                return true;
             }
         });
 
@@ -251,6 +268,24 @@ public class MainActivity extends AppCompatActivity {
         
         btnBack.setAlpha(currentWebView.canGoBack() ? 1.0f : 0.3f);
         btnForward.setAlpha(currentWebView.canGoForward() ? 1.0f : 0.3f);
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleIntent(intent);
+    }
+
+    private void handleIntent(Intent intent) {
+        String action = intent.getAction();
+        String data = intent.getDataString();
+
+        if (Intent.ACTION_VIEW.equals(action) && data != null) {
+            createNewTab(data);
+        } else if (tabList.isEmpty()) {
+            createNewTab("https://www.google.com");
+        }
     }
 
     @Override
