@@ -377,10 +377,7 @@ public final class HtmlCleaner {
             el.prependChild(new Element("br"));
         }
     }
-
     private static void transformModernElements(Document document) {
-        document.select("details").tagName("div");
-        document.select("summary").tagName("b");
         for (Element el : document.getAllElements()) {
             if (el.tagName().contains("-")) {
                 el.unwrap();
@@ -582,8 +579,8 @@ public final class HtmlCleaner {
 
     private static final Set<String> SUPPORTED_TAGS = new HashSet<>(Arrays.asList(
             "html", "head", "body", "title", "h1", "h2", "h3", "h4", "h5", "h6", "p", "br", "hr", "div", "span",
-            "a", "img", "strong", "b", "em", "i", "u", "small", "code", "pre", "ul", "ol", "li", "table", "tr", "th", "td",
-            "form", "label", "input", "textarea", "select", "option", "button"
+            "a", "img", "strong", "b", "em", "i", "u", "small", "code", "pre", "ul", "ol", "li", "table", "thead", "tbody", "tfoot", "tr", "th", "td",
+            "form", "label", "input", "textarea", "select", "option", "button", "blockquote", "details", "summary", "section"
     ));
 
     private static void transformUnsupportedElements(Document document) {

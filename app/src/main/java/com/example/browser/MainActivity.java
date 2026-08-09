@@ -57,6 +57,7 @@ public class MainActivity extends AppCompatActivity {
         Spanned pageContent;
         String pageTitle = "Home";
         final List<java.util.concurrent.Future<?>> imageLoadTasks = new ArrayList<>();
+        java.util.Map<String, Integer> anchorMap = new java.util.HashMap<>();
 
         Tab(String url) {
             addHistory(url);
@@ -644,8 +645,13 @@ public class MainActivity extends AppCompatActivity {
                     }
                 };
 
+                // Reconstruct the page using the WebsiteReconstructionEngine to support structural elements and anchors
+                WebsiteReconstructionEngine.ReconstructedPage reconstructedPage = WebsiteReconstructionEngine.reconstruct(cleanedHtml, config.baseUrl);
+                String reconstructedHtml = reconstructedPage.html;
+                tab.anchorMap = reconstructedPage.anchorMap;
+
                 // Parse HTML
-                Spanned parsedHtml = Html.fromHtml(cleanedHtml, Html.FROM_HTML_MODE_LEGACY, imageGetter, null);
+                Spanned parsedHtml = Html.fromHtml(reconstructedHtml, Html.FROM_HTML_MODE_LEGACY, imageGetter, null);
                 
                 // Replace URLSpans with custom ClickableSpans
                 SpannableStringBuilder spannable = new SpannableStringBuilder(parsedHtml);
@@ -659,12 +665,32 @@ public class MainActivity extends AppCompatActivity {
                     ClickableSpan clickableSpan = new ClickableSpan() {
                         @Override
                         public void onClick(View widget) {
+                            if (href != null && href.startsWith("#")) {
+                                String id = href.substring(1);
+                                if (!id.isEmpty()) {
+                                    scrollToElement(id);
+                                }
+                                return;
+                            }
                             String resolvedUrl = href;
                             if (!href.startsWith("http://") && !href.startsWith("https://")) {
                                 try {
                                     URL base = new URL(tab.currentUrl);
                                     resolvedUrl = new URL(base, href).toString();
                                 } catch (Exception ignored) {}
+                            }
+
+                            // Check if it's an internal anchor on the current page
+                            if (resolvedUrl.contains("#")) {
+                                String[] parts = resolvedUrl.split("#", 2);
+                                String baseUrlWithoutHash = tab.currentUrl.split("#")[0];
+                                if (parts[0].equals(baseUrlWithoutHash)) {
+                                    String id = parts[1];
+                                    if (!id.isEmpty()) {
+                                        scrollToElement(id);
+                                    }
+                                    return;
+                                }
                             }
                             
                             // Evaluate the redirect in QuickJS sandbox as requested
@@ -705,6 +731,22 @@ public class MainActivity extends AppCompatActivity {
                 updateButtons();
             });
         });
+    }
+
+    private void scrollToElement(String id) {
+        if (currentTabIdx < 0 || currentTabIdx >= tabList.size()) return;
+        Tab tab = tabList.get(currentTabIdx);
+        Integer targetY = tab.anchorMap.get(id);
+        if (targetY != null) {
+            final int scrollY = Math.max(0, dpToPx(targetY));
+            scrollView.post(() -> {
+                if (scrollView instanceof androidx.core.widget.NestedScrollView) {
+                    ((androidx.core.widget.NestedScrollView) scrollView).smoothScrollTo(0, scrollY);
+                } else {
+                    scrollView.scrollTo(0, scrollY);
+                }
+            });
+        }
     }
 
     private void executeScripts(String htmlContent) {
