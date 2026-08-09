@@ -19,3 +19,12 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# CashApp QuickJS Proguard Rules
+-keep class app.cash.quickjs.** { *; }
+-dontwarn app.cash.quickjs.**
+
+# Keep JS Bridge interfaces from obfuscation
+-keep interface com.example.browser.MainActivity$LocationCallback { *; }
+
+-dontwarn javax.annotation.**
