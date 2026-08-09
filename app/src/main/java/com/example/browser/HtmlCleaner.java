@@ -335,6 +335,22 @@ public final class HtmlCleaner {
         for (Element picture : new ArrayList<>(document.select("picture"))) {
             Element img = picture.selectFirst("img");
             if (img != null) {
+                Element source = picture.selectFirst("source[srcset]");
+                if (source != null) {
+                    String srcset = source.attr("srcset");
+                    String bestUrl = extractUrlFromSrcset(srcset);
+                    if (!bestUrl.isEmpty()) {
+                        img.attr("src", bestUrl);
+                    }
+                } else {
+                    source = picture.selectFirst("source[src]");
+                    if (source != null) {
+                        String src = source.attr("src");
+                        if (!src.isEmpty()) {
+                            img.attr("src", src);
+                        }
+                    }
+                }
                 picture.replaceWith(img.clone());
             } else {
                 picture.unwrap();
@@ -383,6 +399,7 @@ public final class HtmlCleaner {
                 input.attr("type", "text");
             }
         }
+        document.select("select, option").remove();
     }
 
     private static void normalizeLinks(Document document, Config config) {
@@ -404,23 +421,124 @@ public final class HtmlCleaner {
         }
     }
 
+    private static String extractUrlFromSrcset(String srcset) {
+        if (srcset == null || srcset.trim().isEmpty()) {
+            return "";
+        }
+        String[] candidates = srcset.split(",");
+        String selected = "";
+        int maxVal = -1;
+        for (String candidate : candidates) {
+            String trimmed = candidate.trim();
+            if (trimmed.isEmpty()) continue;
+            String[] tokens = trimmed.split("\\s+");
+            if (tokens.length > 0) {
+                String url = tokens[0];
+                if (selected.isEmpty()) {
+                    selected = url;
+                }
+                if (tokens.length > 1) {
+                    try {
+                        String desc = tokens[1].toLowerCase(Locale.ROOT);
+                        if (desc.endsWith("w")) {
+                            int w = Integer.parseInt(desc.substring(0, desc.length() - 1));
+                            if (w > maxVal) {
+                                maxVal = w;
+                                selected = url;
+                            }
+                        } else if (desc.endsWith("x")) {
+                            float x = Float.parseFloat(desc.substring(0, desc.length() - 1));
+                            int val = (int)(x * 100);
+                            if (val > maxVal) {
+                                maxVal = val;
+                                selected = url;
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
+        return selected;
+    }
+
+    private static boolean isPlaceholder(String url) {
+        if (url == null || url.trim().isEmpty()) return true;
+        String lower = url.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("data:image/") && lower.length() < 250) {
+            return true;
+        }
+        return lower.contains("placeholder") || lower.contains("blank.gif") || lower.contains("pixel.gif") || lower.contains("spacer.gif") || lower.contains("trans.gif");
+    }
+
     private static void normalizeImages(Document document, Config config) {
         for (Element img : document.select("img")) {
-            String src = firstNonEmpty(
-                    img.attr("src"), img.attr("data-src"), img.attr("data-lazy-src"), img.attr("data-original")
-            );
+            String src = "";
+            String dataSrc = img.attr("data-src");
+            String dataOriginal = img.attr("data-original");
+            String dataLazy = img.attr("data-lazy-src");
+            String rawSrc = img.attr("src");
+            
+            if (img.hasAttr("srcset")) {
+                String srcsetSrc = extractUrlFromSrcset(img.attr("srcset"));
+                if (!srcsetSrc.isEmpty() && !isPlaceholder(srcsetSrc)) {
+                    src = srcsetSrc;
+                }
+            }
+            
+            if (src.isEmpty()) {
+                if (!isPlaceholder(dataSrc)) {
+                    src = dataSrc;
+                } else if (!isPlaceholder(dataOriginal)) {
+                    src = dataOriginal;
+                } else if (!isPlaceholder(dataLazy)) {
+                    src = dataLazy;
+                } else if (!isPlaceholder(rawSrc)) {
+                    src = rawSrc;
+                } else {
+                    src = firstNonEmpty(dataSrc, dataOriginal, dataLazy, rawSrc);
+                }
+            }
+            
             if (!src.isEmpty()) {
                 src = resolveUrl(config.baseUrl, src);
+                
+                String width = img.attr("width");
+                String height = img.attr("height");
+                if (!width.isEmpty() || !height.isEmpty()) {
+                    StringBuilder fragment = new StringBuilder();
+                    if (!width.isEmpty()) {
+                        fragment.append("vw=").append(width);
+                    }
+                    if (!height.isEmpty()) {
+                        if (fragment.length() > 0) fragment.append("&");
+                        fragment.append("vh=").append(height);
+                    }
+                    if (src.contains("#")) {
+                        src = src.substring(0, src.indexOf('#'));
+                    }
+                    src = src + "#" + fragment.toString();
+                }
+                
                 img.attr("src", src);
             } else {
                 img.remove();
                 continue;
             }
+            
             String alt = img.attr("alt");
             if (alt == null || alt.trim().isEmpty()) {
                 img.attr("alt", "[Image]");
             }
-            img.removeAttr("srcset").removeAttr("sizes").removeAttr("loading");
+            
+            img.removeAttr("srcset")
+               .removeAttr("sizes")
+               .removeAttr("loading")
+               .removeAttr("decoding")
+               .removeAttr("fetchpriority")
+               .removeAttr("data-src")
+               .removeAttr("data-srcset")
+               .removeAttr("data-lazy-src")
+               .removeAttr("data-original");
         }
     }
 
@@ -449,6 +567,10 @@ public final class HtmlCleaner {
                 } else if (lower.startsWith("on")) {
                     toRemove.add(key);
                 } else if (lower.startsWith("data-react") || lower.startsWith("data-v-") || lower.startsWith("ng-")) {
+                    toRemove.add(key);
+                } else if (lower.equals("loading") || lower.equals("decoding") || lower.equals("fetchpriority") ||
+                           lower.equals("srcset") || lower.equals("sizes") || lower.equals("data-src") ||
+                           lower.equals("data-srcset") || lower.equals("data-lazy-src") || lower.equals("data-original")) {
                     toRemove.add(key);
                 }
             }

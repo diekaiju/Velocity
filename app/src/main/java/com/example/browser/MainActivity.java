@@ -20,6 +20,14 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.content.Intent;
 import android.net.Uri;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.Canvas;
+import android.graphics.ColorFilter;
+import android.graphics.PixelFormat;
+
+import com.example.browser.reconstruction.WebsiteReconstructionEngine;
 
 import app.cash.quickjs.QuickJs;
 
@@ -48,9 +56,21 @@ public class MainActivity extends AppCompatActivity {
         int historyIndex = -1;
         Spanned pageContent;
         String pageTitle = "Home";
+        final List<java.util.concurrent.Future<?>> imageLoadTasks = new ArrayList<>();
 
         Tab(String url) {
             addHistory(url);
+        }
+
+        void clearTasks() {
+            synchronized (imageLoadTasks) {
+                for (java.util.concurrent.Future<?> task : imageLoadTasks) {
+                    if (task != null && !task.isDone() && !task.isCancelled()) {
+                        task.cancel(true);
+                    }
+                }
+                imageLoadTasks.clear();
+            }
         }
 
         void addHistory(String url) {
@@ -81,6 +101,60 @@ public class MainActivity extends AppCompatActivity {
             if (canGoForward()) {
                 historyIndex++;
                 currentUrl = history.get(historyIndex);
+            }
+        }
+    }
+
+    public static class UrlDrawable extends android.graphics.drawable.Drawable {
+        private android.graphics.drawable.Drawable drawable;
+        private final String url;
+
+        public UrlDrawable(String url, android.graphics.drawable.Drawable placeholder) {
+            this.url = url;
+            this.drawable = placeholder;
+            if (placeholder != null) {
+                setBounds(0, 0, placeholder.getIntrinsicWidth(), placeholder.getIntrinsicHeight());
+            }
+        }
+
+        public void setActualDrawable(android.graphics.drawable.Drawable drawable) {
+            this.drawable = drawable;
+            if (drawable != null) {
+                setBounds(0, 0, drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight());
+            }
+        }
+
+        @Override
+        public void draw(android.graphics.Canvas canvas) {
+            if (drawable != null) {
+                drawable.draw(canvas);
+            }
+        }
+
+        @Override
+        public void setAlpha(int alpha) {
+            if (drawable != null) {
+                drawable.setAlpha(alpha);
+            }
+        }
+
+        @Override
+        public void setColorFilter(android.graphics.ColorFilter colorFilter) {
+            if (drawable != null) {
+                drawable.setColorFilter(colorFilter);
+            }
+        }
+
+        @Override
+        public int getOpacity() {
+            return drawable != null ? drawable.getOpacity() : android.graphics.PixelFormat.TRANSLUCENT;
+        }
+
+        @Override
+        public void setBounds(int left, int top, int right, int bottom) {
+            super.setBounds(left, top, right, bottom);
+            if (drawable != null) {
+                drawable.setBounds(left, top, right, bottom);
             }
         }
     }
@@ -331,6 +405,7 @@ public class MainActivity extends AppCompatActivity {
         if (tabList.size() <= 1) {
             if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
                 Tab tab = tabList.get(currentTabIdx);
+                tab.clearTasks();
                 tab.addHistory("home");
                 tab.pageContent = null;
                 tab.pageTitle = "Home";
@@ -339,6 +414,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        tabList.get(currentTabIdx).clearTasks();
         tabList.remove(currentTabIdx);
         tabContainer.removeViewAt(currentTabIdx);
 
@@ -415,6 +491,7 @@ public class MainActivity extends AppCompatActivity {
 
         final String finalUrl = url;
         final Tab tab = tabList.get(currentTabIdx);
+        tab.clearTasks();
         if (addToHistory) {
             tab.addHistory(finalUrl);
         }
@@ -482,8 +559,93 @@ public class MainActivity extends AppCompatActivity {
                 String cleanedHtml = HtmlCleaner.clean(htmlContent, config).html;
                 android.util.Log.d("Velocity", "Cleaned HTML: " + cleanedHtml);
                 
+                Html.ImageGetter imageGetter = new Html.ImageGetter() {
+                    @Override
+                    public Drawable getDrawable(String source) {
+                        int reqWidth = 0;
+                        int reqHeight = 0;
+                        String cleanUrl = source;
+                        try {
+                            int hashIdx = source.indexOf('#');
+                            if (hashIdx != -1) {
+                                cleanUrl = source.substring(0, hashIdx);
+                                String fragment = source.substring(hashIdx + 1);
+                                String[] pairs = fragment.split("&");
+                                for (String pair : pairs) {
+                                    String[] kv = pair.split("=");
+                                    if (kv.length == 2) {
+                                        if (kv[0].equals("vw")) {
+                                            reqWidth = Integer.parseInt(kv[1]);
+                                        } else if (kv[0].equals("vh")) {
+                                            reqHeight = Integer.parseInt(kv[1]);
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (Exception ignored) {}
+
+                        int targetWidth = reqWidth > 0 ? dpToPx(reqWidth) : dpToPx(120);
+                        int targetHeight = reqHeight > 0 ? dpToPx(reqHeight) : dpToPx(120);
+
+                        GradientDrawable placeholder = new GradientDrawable();
+                        placeholder.setColor(0xFFF1F3F4);
+                        placeholder.setCornerRadius(dpToPx(4));
+                        placeholder.setStroke(dpToPx(1), 0xFFDADCE0);
+                        placeholder.setSize(targetWidth, targetHeight);
+                        placeholder.setBounds(0, 0, targetWidth, targetHeight);
+
+                        UrlDrawable urlDrawable = new UrlDrawable(source, placeholder);
+
+                        final String finalCleanUrl = cleanUrl;
+                        java.util.concurrent.Future<?> task = ImageLoader.getInstance(MainActivity.this).load(
+                            finalCleanUrl,
+                            targetWidth,
+                            targetHeight,
+                            new ImageLoader.ImageLoadCallback() {
+                                @Override
+                                public void onImageLoaded(android.graphics.Bitmap bitmap) {
+                                    BitmapDrawable bitmapDrawable = new BitmapDrawable(getResources(), bitmap);
+                                    bitmapDrawable.setBounds(0, 0, bitmap.getWidth(), bitmap.getHeight());
+                                    urlDrawable.setActualDrawable(bitmapDrawable);
+                                    
+                                    runOnUiThread(() -> {
+                                        if (tabList.indexOf(tab) == currentTabIdx) {
+                                            htmlTextView.setText(htmlTextView.getText());
+                                        }
+                                    });
+                                }
+
+                                @Override
+                                public void onError(Throwable error) {
+                                    GradientDrawable errorDrawable = new GradientDrawable();
+                                    errorDrawable.setColor(0xFFFCE8E6);
+                                    errorDrawable.setCornerRadius(dpToPx(4));
+                                    errorDrawable.setStroke(dpToPx(1), 0xFFD93025);
+                                    errorDrawable.setSize(targetWidth, targetHeight);
+                                    errorDrawable.setBounds(0, 0, targetWidth, targetHeight);
+                                    urlDrawable.setActualDrawable(errorDrawable);
+                                    
+                                    runOnUiThread(() -> {
+                                        if (tabList.indexOf(tab) == currentTabIdx) {
+                                            htmlTextView.setText(htmlTextView.getText());
+                                        }
+                                    });
+                                }
+                            }
+                        );
+
+                        if (task != null) {
+                            synchronized (tab.imageLoadTasks) {
+                                tab.imageLoadTasks.add(task);
+                            }
+                        }
+
+                        return urlDrawable;
+                    }
+                };
+
                 // Parse HTML
-                Spanned parsedHtml = Html.fromHtml(cleanedHtml, Html.FROM_HTML_MODE_LEGACY);
+                Spanned parsedHtml = Html.fromHtml(cleanedHtml, Html.FROM_HTML_MODE_LEGACY, imageGetter, null);
                 
                 // Replace URLSpans with custom ClickableSpans
                 SpannableStringBuilder spannable = new SpannableStringBuilder(parsedHtml);
