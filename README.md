@@ -4,6 +4,14 @@
 
 ---
 
+## 📱 Screenshots
+
+| Home Reading Hub | Article Reader View | Table of Contents | More Options Sheet |
+| :---: | :---: | :---: | :---: |
+| <img src="screenshots/home_screen.jpg" width="220" /> | <img src="screenshots/article_reader_view.jpg" width="220" /> | <img src="screenshots/table_of_contents_drawer.jpg" width="220" /> | <img src="screenshots/more_options_sheet.jpg" width="220" /> |
+
+---
+
 ## ✨ Features
 
 - 📖 **Native Layout Reconstruction Engine**: Parses raw web content and renders distraction-free native Android components (`TextView`, `ImageView`, `TableLayout`, `LinearLayout`) without webview bloat.
