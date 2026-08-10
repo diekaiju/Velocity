@@ -19,11 +19,13 @@ import java.util.Set;
 public class WebsiteReconstructionEngine {
 
     public static class ReconstructedPage {
+        public final LayoutNode rootLayout;
         public final String html;
         public final String css;
         public final Map<String, Integer> anchorMap;
 
-        public ReconstructedPage(String html, String css, Map<String, Integer> anchorMap) {
+        public ReconstructedPage(LayoutNode rootLayout, String html, String css, Map<String, Integer> anchorMap) {
+            this.rootLayout = rootLayout;
             this.html = html;
             this.css = css;
             this.anchorMap = anchorMap;
@@ -32,7 +34,7 @@ public class WebsiteReconstructionEngine {
 
     public static ReconstructedPage reconstruct(String rawHtml, String baseUrl) {
         if (rawHtml == null || rawHtml.trim().isEmpty()) {
-            return new ReconstructedPage("", "", new HashMap<>());
+            return new ReconstructedPage(null, "", "", new HashMap<>());
         }
 
         Document document = Jsoup.parse(rawHtml, baseUrl == null ? "" : baseUrl);
@@ -40,13 +42,26 @@ public class WebsiteReconstructionEngine {
         // 1. Analyze and Clean DOM structure
         cleanDom(document);
 
-        // Collect anchor target IDs and names
+        // Collect anchor target IDs and heading IDs
         Set<String> anchorIds = new HashSet<>();
         for (Element link : document.select("a[href^='#']")) {
             String href = link.attr("href");
             if (href.length() > 1) {
                 anchorIds.add(href.substring(1));
             }
+        }
+
+        int headingIdx = 0;
+        for (Element heading : document.select("h1, h2, h3, h4, h5, h6")) {
+            String id = heading.attr("id");
+            if (id.isEmpty()) {
+                id = heading.attr("name");
+            }
+            if (id.isEmpty()) {
+                id = "toc_heading_" + (headingIdx++);
+                heading.attr("id", id);
+            }
+            anchorIds.add(id);
         }
 
         // 2. Build Layout Tree and Compute styles/layout coordinates
@@ -66,7 +81,7 @@ public class WebsiteReconstructionEngine {
         generateReconstructedHtml(rootLayout, htmlBuilder, cssBuilder, anchorIds);
         htmlBuilder.append("</div>\n");
 
-        return new ReconstructedPage(htmlBuilder.toString(), cssBuilder.toString(), anchorMap);
+        return new ReconstructedPage(rootLayout, htmlBuilder.toString(), cssBuilder.toString(), anchorMap);
     }
 
     private static void cleanDom(Document document) {

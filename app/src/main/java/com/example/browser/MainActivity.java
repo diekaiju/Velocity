@@ -58,6 +58,7 @@ public class MainActivity extends AppCompatActivity {
         String pageTitle = "Home";
         final List<java.util.concurrent.Future<?>> imageLoadTasks = new ArrayList<>();
         java.util.Map<String, Integer> anchorMap = new java.util.HashMap<>();
+        com.example.browser.reconstruction.LayoutNode rootLayout;
 
         Tab(String url) {
             addHistory(url);
@@ -184,6 +185,7 @@ public class MainActivity extends AppCompatActivity {
     private ImageButton btnHomeSearchGo;
 
     private TextView htmlTextView;
+    private LinearLayout pageLayoutContainer;
     private LinearLayout tabContainer;
     private EditText urlInput;
     private ProgressBar progressBar;
@@ -195,8 +197,17 @@ public class MainActivity extends AppCompatActivity {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private QuickJs quickJs;
 
+    private ImageButton btnOutline;
+    private ImageButton btnTts;
+    private ImageButton btnTheme;
+    private com.example.browser.reconstruction.ReaderTheme currentReaderTheme = com.example.browser.reconstruction.ReaderTheme.LIGHT;
+    private android.speech.tts.TextToSpeech textToSpeech;
+    private boolean isSpeaking = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        com.google.android.material.color.DynamicColors.applyToActivitiesIfAvailable(getApplication());
+
         // Set crash logger to clipboard
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
@@ -217,6 +228,13 @@ public class MainActivity extends AppCompatActivity {
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // Initialize TTS
+        textToSpeech = new android.speech.tts.TextToSpeech(this, status -> {
+            if (status == android.speech.tts.TextToSpeech.SUCCESS) {
+                textToSpeech.setLanguage(java.util.Locale.US);
+            }
+        });
 
         // Initialize QuickJS context and map JS parent redirect callback
         try {
@@ -258,6 +276,7 @@ public class MainActivity extends AppCompatActivity {
         btnHomeSearchGo = findViewById(R.id.btnHomeSearchGo);
 
         htmlTextView = findViewById(R.id.htmlTextView);
+        pageLayoutContainer = findViewById(R.id.pageLayoutContainer);
         tabContainer = findViewById(R.id.tabContainer);
         urlInput = findViewById(R.id.urlInput);
         progressBar = findViewById(R.id.progressBar);
@@ -268,6 +287,14 @@ public class MainActivity extends AppCompatActivity {
         btnGo = findViewById(R.id.btnGo);
         btnNewTab = findViewById(R.id.btnNewTab);
         btnCloseTab = findViewById(R.id.btnCloseTab);
+
+        btnOutline = findViewById(R.id.btnOutline);
+        btnTts = findViewById(R.id.btnTts);
+        btnTheme = findViewById(R.id.btnTheme);
+
+        if (btnOutline != null) btnOutline.setOnClickListener(v -> showArticleOutline());
+        if (btnTts != null) btnTts.setOnClickListener(v -> toggleTextToSpeech());
+        if (btnTheme != null) btnTheme.setOnClickListener(v -> showThemeSelector());
 
         setupListeners();
 
@@ -436,12 +463,7 @@ public class MainActivity extends AppCompatActivity {
                 urlInput.setText(tab.currentUrl);
                 homePageContainer.setVisibility(View.GONE);
                 scrollView.setVisibility(View.VISIBLE);
-                if (tab.pageContent != null) {
-                    htmlTextView.setText(tab.pageContent);
-                    htmlTextView.setMovementMethod(LinkMovementMethod.getInstance());
-                } else {
-                    htmlTextView.setText("");
-                }
+                renderNativeTree(tab);
             }
             
             updateButtons();
@@ -645,107 +667,280 @@ public class MainActivity extends AppCompatActivity {
                     }
                 };
 
-                // Reconstruct the page using the WebsiteReconstructionEngine to support structural elements and anchors
+                // Reconstruct the page using the WebsiteReconstructionEngine
                 WebsiteReconstructionEngine.ReconstructedPage reconstructedPage = WebsiteReconstructionEngine.reconstruct(cleanedHtml, config.baseUrl);
-                String reconstructedHtml = reconstructedPage.html;
+                tab.rootLayout = reconstructedPage.rootLayout;
                 tab.anchorMap = reconstructedPage.anchorMap;
-
-                // Parse HTML
-                Spanned parsedHtml = Html.fromHtml(reconstructedHtml, Html.FROM_HTML_MODE_LEGACY, imageGetter, null);
-                
-                // Replace URLSpans with custom ClickableSpans
-                SpannableStringBuilder spannable = new SpannableStringBuilder(parsedHtml);
-                URLSpan[] urls = spannable.getSpans(0, spannable.length(), URLSpan.class);
-                for (URLSpan span : urls) {
-                    int start = spannable.getSpanStart(span);
-                    int end = spannable.getSpanEnd(span);
-                    int flags = spannable.getSpanFlags(span);
-                    String href = span.getURL();
-
-                    ClickableSpan clickableSpan = new ClickableSpan() {
-                        @Override
-                        public void onClick(View widget) {
-                            if (href != null && href.startsWith("#")) {
-                                String id = href.substring(1);
-                                if (!id.isEmpty()) {
-                                    scrollToElement(id);
-                                }
-                                return;
-                            }
-                            String resolvedUrl = href;
-                            if (!href.startsWith("http://") && !href.startsWith("https://")) {
-                                try {
-                                    URL base = new URL(tab.currentUrl);
-                                    resolvedUrl = new URL(base, href).toString();
-                                } catch (Exception ignored) {}
-                            }
-
-                            // Check if it's an internal anchor on the current page
-                            if (resolvedUrl.contains("#")) {
-                                String[] parts = resolvedUrl.split("#", 2);
-                                String baseUrlWithoutHash = tab.currentUrl.split("#")[0];
-                                if (parts[0].equals(baseUrlWithoutHash)) {
-                                    String id = parts[1];
-                                    if (!id.isEmpty()) {
-                                        scrollToElement(id);
-                                    }
-                                    return;
-                                }
-                            }
-                            
-                            // Evaluate the redirect in QuickJS sandbox as requested
-                            if (quickJs != null) {
-                                try {
-                                    String jsCode = "window.parent.location.replace('" + resolvedUrl + "');";
-                                    quickJs.evaluate(jsCode);
-                                } catch (Exception e) {
-                                    // Fallback if evaluating fails
-                                    loadUrl(resolvedUrl, true);
-                                }
-                            } else {
-                                loadUrl(resolvedUrl, true);
-                            }
-                        }
-                    };
-
-                    spannable.setSpan(clickableSpan, start, end, flags);
-                    spannable.removeSpan(span);
-                }
-
-                tab.pageContent = spannable;
                 tab.pageTitle = finalPageTitle;
-                
-                // Update active TextView
+
                 if (tabList.indexOf(tab) == currentTabIdx) {
-                    htmlTextView.setText(tab.pageContent);
-                    htmlTextView.setMovementMethod(LinkMovementMethod.getInstance());
-                    
+                    renderNativeTree(tab);
+
                     // Update tab text UI
                     android.widget.TextView tv = (android.widget.TextView) tabContainer.getChildAt(currentTabIdx);
                     if (tv != null) {
                         tv.setText(tab.pageTitle);
                     }
                 }
-                
+
                 progressBar.setVisibility(View.GONE);
                 updateButtons();
             });
         });
     }
 
-    private void scrollToElement(String id) {
+    private void renderNativeTree(Tab tab) {
+        if (tab == null || pageLayoutContainer == null) return;
+        if (tab.rootLayout != null) {
+            scrollView.setBackgroundColor(currentReaderTheme.backgroundColor);
+            pageLayoutContainer.setBackgroundColor(currentReaderTheme.backgroundColor);
+            com.example.browser.reconstruction.NativeLayoutRenderer.renderTree(
+                    MainActivity.this,
+                    pageLayoutContainer,
+                    tab.rootLayout,
+                    href -> handleLinkClick(href, tab),
+                    id -> scrollToElement(id),
+                    currentReaderTheme
+            );
+        } else if (tab.pageContent != null) {
+            pageLayoutContainer.removeAllViews();
+            htmlTextView.setText(tab.pageContent);
+            htmlTextView.setVisibility(View.VISIBLE);
+            pageLayoutContainer.addView(htmlTextView);
+        }
+    }
+
+    private void showArticleOutline() {
         if (currentTabIdx < 0 || currentTabIdx >= tabList.size()) return;
         Tab tab = tabList.get(currentTabIdx);
-        Integer targetY = tab.anchorMap.get(id);
-        if (targetY != null) {
-            final int scrollY = Math.max(0, dpToPx(targetY));
-            scrollView.post(() -> {
-                if (scrollView instanceof androidx.core.widget.NestedScrollView) {
-                    ((androidx.core.widget.NestedScrollView) scrollView).smoothScrollTo(0, scrollY);
-                } else {
-                    scrollView.scrollTo(0, scrollY);
+        if (tab.rootLayout == null) {
+            Toast.makeText(this, "No article outline available", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        List<com.example.browser.reconstruction.ArticleOutlineExtractor.OutlineItem> outline =
+                com.example.browser.reconstruction.ArticleOutlineExtractor.extractOutline(tab.rootLayout);
+
+        if (outline.isEmpty()) {
+            Toast.makeText(this, "No headings found in this article", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        com.google.android.material.bottomsheet.BottomSheetDialog dialog =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(24));
+
+        TextView title = new TextView(this);
+        title.setText("Table of Contents");
+        title.setTextSize(18f);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        title.setPadding(0, 0, 0, dpToPx(12));
+        layout.addView(title);
+
+        androidx.core.widget.NestedScrollView sheetScroll = new androidx.core.widget.NestedScrollView(this);
+        LinearLayout itemsList = new LinearLayout(this);
+        itemsList.setOrientation(LinearLayout.VERTICAL);
+
+        for (com.example.browser.reconstruction.ArticleOutlineExtractor.OutlineItem item : outline) {
+            TextView itemTv = new TextView(this);
+            int indent = (item.level - 1) * dpToPx(16);
+            itemTv.setPadding(indent + dpToPx(8), dpToPx(10), dpToPx(8), dpToPx(10));
+            itemTv.setText((item.level > 1 ? "• " : "") + item.title);
+            itemTv.setTextSize(item.level == 1 ? 16f : 14f);
+            itemTv.setTextColor(item.level == 1 ? android.graphics.Color.parseColor("#1976D2") : android.graphics.Color.parseColor("#333333"));
+            itemTv.setOnClickListener(v -> {
+                dialog.dismiss();
+                if (!item.id.isEmpty()) {
+                    scrollToElement(item.id);
                 }
             });
+            itemsList.addView(itemTv);
+        }
+
+        sheetScroll.addView(itemsList);
+        layout.addView(sheetScroll);
+        dialog.setContentView(layout);
+        dialog.show();
+    }
+
+    private void showThemeSelector() {
+        com.google.android.material.bottomsheet.BottomSheetDialog dialog =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(24));
+
+        TextView title = new TextView(this);
+        title.setText("Select Reader Theme");
+        title.setTextSize(18f);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        title.setPadding(0, 0, 0, dpToPx(12));
+        layout.addView(title);
+
+        com.example.browser.reconstruction.ReaderTheme[] themes = com.example.browser.reconstruction.ReaderTheme.values();
+        for (com.example.browser.reconstruction.ReaderTheme t : themes) {
+            TextView themeOption = new TextView(this);
+            themeOption.setText(t.displayName);
+            themeOption.setTextSize(16f);
+            themeOption.setPadding(dpToPx(12), dpToPx(12), dpToPx(12), dpToPx(12));
+            themeOption.setTextColor(t.textColor);
+
+            GradientDrawable gd = new GradientDrawable();
+            gd.setColor(t.backgroundColor);
+            gd.setStroke(dpToPx(2), t.borderColor);
+            gd.setCornerRadius(dpToPx(8));
+            themeOption.setBackground(gd);
+
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.setMargins(0, dpToPx(4), 0, dpToPx(4));
+            themeOption.setLayoutParams(lp);
+
+            themeOption.setOnClickListener(v -> {
+                currentReaderTheme = t;
+                dialog.dismiss();
+                if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
+                    renderNativeTree(tabList.get(currentTabIdx));
+                }
+            });
+
+            layout.addView(themeOption);
+        }
+
+        dialog.setContentView(layout);
+        dialog.show();
+    }
+
+    private void toggleTextToSpeech() {
+        if (textToSpeech == null) return;
+        if (isSpeaking) {
+            textToSpeech.stop();
+            isSpeaking = false;
+            Toast.makeText(this, "Speech stopped", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (currentTabIdx < 0 || currentTabIdx >= tabList.size()) return;
+        Tab tab = tabList.get(currentTabIdx);
+        if (tab.rootLayout == null) {
+            Toast.makeText(this, "No content to read", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String readableText = extractAllText(tab.rootLayout);
+        if (readableText.trim().isEmpty()) {
+            Toast.makeText(this, "No text found to read", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        isSpeaking = true;
+        Toast.makeText(this, "Reading aloud...", Toast.LENGTH_SHORT).show();
+        textToSpeech.speak(readableText, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "VelocityTTS");
+    }
+
+    private String extractAllText(com.example.browser.reconstruction.LayoutNode node) {
+        if (node == null) return "";
+        StringBuilder sb = new StringBuilder();
+        if (node.element != null) {
+            String tag = node.element.tagName().toLowerCase(java.util.Locale.ROOT);
+            if (tag.equals("p") || tag.equals("h1") || tag.equals("h2") || tag.equals("h3") || tag.equals("li") || tag.equals("blockquote")) {
+                sb.append(node.element.text()).append(". ");
+            }
+        }
+        for (com.example.browser.reconstruction.LayoutNode child : node.children) {
+            sb.append(extractAllText(child));
+        }
+        return sb.toString();
+    }
+
+    private void handleLinkClick(String href, Tab tab) {
+        if (href == null || href.isEmpty()) return;
+        if (href.startsWith("#")) {
+            String id = href.substring(1);
+            if (!id.isEmpty()) {
+                scrollToElement(id);
+            }
+            return;
+        }
+        String resolvedUrl = href;
+        if (!href.startsWith("http://") && !href.startsWith("https://")) {
+            try {
+                URL base = new URL(tab.currentUrl);
+                resolvedUrl = new URL(base, href).toString();
+            } catch (Exception ignored) {}
+        }
+        if (resolvedUrl.contains("#")) {
+            String[] parts = resolvedUrl.split("#", 2);
+            String baseUrlWithoutHash = tab.currentUrl.split("#")[0];
+            if (parts[0].equals(baseUrlWithoutHash)) {
+                String id = parts[1];
+                if (!id.isEmpty()) {
+                    scrollToElement(id);
+                }
+                return;
+            }
+        }
+        if (quickJs != null) {
+            try {
+                String jsCode = "window.parent.location.replace('" + resolvedUrl + "');";
+                quickJs.evaluate(jsCode);
+            } catch (Exception e) {
+                loadUrl(resolvedUrl, true);
+            }
+        } else {
+            loadUrl(resolvedUrl, true);
+        }
+    }
+
+    private View findViewWithTagRecursive(View parent, String tag) {
+        if (parent == null || tag == null) return null;
+        if (tag.equals(parent.getTag())) return parent;
+        if (parent instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) parent;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                View found = findViewWithTagRecursive(group.getChildAt(i), tag);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    private void scrollToElement(String id) {
+        if (id == null || id.isEmpty() || pageLayoutContainer == null || scrollView == null) return;
+
+        View targetView = findViewWithTagRecursive(pageLayoutContainer, "anchor:" + id);
+        if (targetView != null) {
+            int[] viewLoc = new int[2];
+            int[] containerLoc = new int[2];
+            targetView.getLocationOnScreen(viewLoc);
+            pageLayoutContainer.getLocationOnScreen(containerLoc);
+            final int targetY = Math.max(0, viewLoc[1] - containerLoc[1]);
+            scrollView.post(() -> {
+                if (scrollView instanceof androidx.core.widget.NestedScrollView) {
+                    ((androidx.core.widget.NestedScrollView) scrollView).smoothScrollTo(0, targetY);
+                } else {
+                    scrollView.scrollTo(0, targetY);
+                }
+            });
+            return;
+        }
+
+        if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
+            Tab tab = tabList.get(currentTabIdx);
+            Integer targetY = tab.anchorMap.get(id);
+            if (targetY != null) {
+                final int scrollY = Math.max(0, dpToPx(targetY));
+                scrollView.post(() -> {
+                    if (scrollView instanceof androidx.core.widget.NestedScrollView) {
+                        ((androidx.core.widget.NestedScrollView) scrollView).smoothScrollTo(0, scrollY);
+                    } else {
+                        scrollView.scrollTo(0, scrollY);
+                    }
+                });
+            }
         }
     }
 
@@ -820,6 +1015,10 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        if (textToSpeech != null) {
+            textToSpeech.stop();
+            textToSpeech.shutdown();
+        }
         executor.shutdownNow();
         if (quickJs != null) {
             try {

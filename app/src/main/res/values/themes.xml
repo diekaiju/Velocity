@@ -1,5 +1,14 @@
 <resources>
     <style name="Theme.Browser" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Material 3 specific attributes if needed -->
+        <item name="colorPrimary">#1976D2</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#E3F2FD</item>
+        <item name="colorOnPrimaryContainer">#0D47A1</item>
+        <item name="colorSurface">#F8F9FA</item>
+        <item name="colorOnSurface">#1C1B1F</item>
+        <item name="colorSurfaceVariant">#E1E3E1</item>
+        <item name="colorOnSurfaceVariant">#444746</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 </resources>
