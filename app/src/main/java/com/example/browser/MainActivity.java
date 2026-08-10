@@ -60,6 +60,8 @@ public class MainActivity extends AppCompatActivity {
         java.util.Map<String, Integer> anchorMap = new java.util.HashMap<>();
         com.example.browser.reconstruction.LayoutNode rootLayout;
 
+        List<Integer> historyScrollY = new ArrayList<>();
+
         Tab(String url) {
             addHistory(url);
         }
@@ -78,10 +80,25 @@ public class MainActivity extends AppCompatActivity {
         void addHistory(String url) {
             if (historyIndex < history.size() - 1) {
                 history = new ArrayList<>(history.subList(0, historyIndex + 1));
+                historyScrollY = new ArrayList<>(historyScrollY.subList(0, historyIndex + 1));
             }
             history.add(url);
+            historyScrollY.add(0);
             historyIndex++;
             currentUrl = url;
+        }
+
+        void saveCurrentScrollY(int scrollY) {
+            if (historyIndex >= 0 && historyIndex < historyScrollY.size()) {
+                historyScrollY.set(historyIndex, scrollY);
+            }
+        }
+
+        int getCurrentScrollY() {
+            if (historyIndex >= 0 && historyIndex < historyScrollY.size()) {
+                return historyScrollY.get(historyIndex);
+            }
+            return 0;
         }
 
         boolean canGoBack() {
@@ -198,15 +215,15 @@ public class MainActivity extends AppCompatActivity {
     private QuickJs quickJs;
 
     private ImageButton btnOutline;
-    private ImageButton btnTts;
-    private ImageButton btnTheme;
+    private ImageButton btnMore;
+    private String currentRawHtml = "";
     private com.example.browser.reconstruction.ReaderTheme currentReaderTheme = com.example.browser.reconstruction.ReaderTheme.LIGHT;
     private android.speech.tts.TextToSpeech textToSpeech;
     private boolean isSpeaking = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        com.google.android.material.color.DynamicColors.applyToActivitiesIfAvailable(getApplication());
+        com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this);
 
         // Set crash logger to clipboard
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
@@ -282,19 +299,18 @@ public class MainActivity extends AppCompatActivity {
         progressBar = findViewById(R.id.progressBar);
         btnBack = findViewById(R.id.btnBack);
         btnForward = findViewById(R.id.btnForward);
+        btnOutline = findViewById(R.id.btnOutline);
         btnHome = findViewById(R.id.btnHome);
-        btnRefresh = findViewById(R.id.btnRefresh);
         btnGo = findViewById(R.id.btnGo);
         btnNewTab = findViewById(R.id.btnNewTab);
-        btnCloseTab = findViewById(R.id.btnCloseTab);
+        btnMore = findViewById(R.id.btnMore);
 
-        btnOutline = findViewById(R.id.btnOutline);
-        btnTts = findViewById(R.id.btnTts);
-        btnTheme = findViewById(R.id.btnTheme);
-
-        if (btnOutline != null) btnOutline.setOnClickListener(v -> showArticleOutline());
-        if (btnTts != null) btnTts.setOnClickListener(v -> toggleTextToSpeech());
-        if (btnTheme != null) btnTheme.setOnClickListener(v -> showThemeSelector());
+        if (btnOutline != null) {
+            btnOutline.setOnClickListener(v -> showArticleOutline());
+        }
+        if (btnMore != null) {
+            btnMore.setOnClickListener(v -> showMoreOptionsSheet());
+        }
 
         setupListeners();
 
@@ -364,56 +380,80 @@ public class MainActivity extends AppCompatActivity {
             return false;
         });
 
-        btnBack.setOnClickListener(v -> {
-            if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
-                Tab tab = tabList.get(currentTabIdx);
-                if (tab.canGoBack()) {
-                    tab.goBack();
-                    if (tab.currentUrl.equals("home")) {
-                        switchToTab(currentTabIdx);
-                    } else {
-                        loadUrl(tab.currentUrl, false);
+        // Reading Hub Quick Topic & Library Buttons
+        android.widget.Button btnCategoryWiki = findViewById(R.id.btnCategoryWiki);
+        android.widget.Button btnCategoryNews = findViewById(R.id.btnCategoryNews);
+        android.widget.Button btnCategoryTech = findViewById(R.id.btnCategoryTech);
+        android.widget.Button btnCategoryBooks = findViewById(R.id.btnCategoryBooks);
+        android.widget.Button btnHomeBookmarks = findViewById(R.id.btnHomeBookmarks);
+        android.widget.Button btnHomeHistory = findViewById(R.id.btnHomeHistory);
+
+        if (btnCategoryWiki != null) btnCategoryWiki.setOnClickListener(v -> loadUrl("https://en.wikipedia.org/wiki/Special:Random", true));
+        if (btnCategoryNews != null) btnCategoryNews.setOnClickListener(v -> loadUrl("https://news.google.com/", true));
+        if (btnCategoryTech != null) btnCategoryTech.setOnClickListener(v -> loadUrl("https://arstechnica.com/", true));
+        if (btnCategoryBooks != null) btnCategoryBooks.setOnClickListener(v -> loadUrl("https://gutenberg.org/", true));
+
+        if (btnHomeBookmarks != null) btnHomeBookmarks.setOnClickListener(v -> showBookmarksSheet());
+        if (btnHomeHistory != null) btnHomeHistory.setOnClickListener(v -> showHistorySheet());
+
+        if (btnBack != null) {
+            btnBack.setOnClickListener(v -> {
+                if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
+                    Tab tab = tabList.get(currentTabIdx);
+                    if (tab.canGoBack()) {
+                        tab.goBack();
+                        if (tab.currentUrl.equals("home")) {
+                            switchToTab(currentTabIdx);
+                        } else {
+                            loadUrl(tab.currentUrl, false);
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
 
-        btnForward.setOnClickListener(v -> {
-            if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
-                Tab tab = tabList.get(currentTabIdx);
-                if (tab.canGoForward()) {
-                    tab.goForward();
-                    if (tab.currentUrl.equals("home")) {
-                        switchToTab(currentTabIdx);
-                    } else {
-                        loadUrl(tab.currentUrl, false);
+        if (btnForward != null) {
+            btnForward.setOnClickListener(v -> {
+                if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
+                    Tab tab = tabList.get(currentTabIdx);
+                    if (tab.canGoForward()) {
+                        tab.goForward();
+                        if (tab.currentUrl.equals("home")) {
+                            switchToTab(currentTabIdx);
+                        } else {
+                            loadUrl(tab.currentUrl, false);
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
 
-        btnHome.setOnClickListener(v -> {
-            if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
-                Tab tab = tabList.get(currentTabIdx);
-                tab.addHistory("home");
-                tab.pageContent = null;
-                tab.pageTitle = "Home";
-                switchToTab(currentTabIdx);
-            }
-        });
-
-        btnRefresh.setOnClickListener(v -> {
-            if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
-                String currentUrl = tabList.get(currentTabIdx).currentUrl;
-                if (!currentUrl.equals("home")) {
-                    loadUrl(currentUrl, false);
+        if (btnHome != null) {
+            btnHome.setOnClickListener(v -> {
+                if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
+                    Tab tab = tabList.get(currentTabIdx);
+                    tab.addHistory("home");
+                    tab.pageContent = null;
+                    tab.pageTitle = "Home";
+                    switchToTab(currentTabIdx);
                 }
-            }
-        });
+            });
+        }
 
-        btnNewTab.setOnClickListener(v -> createNewTab("home"));
+        if (btnRefresh != null) {
+            btnRefresh.setOnClickListener(v -> {
+                if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
+                    String currentUrl = tabList.get(currentTabIdx).currentUrl;
+                    if (!currentUrl.equals("home")) {
+                        loadUrl(currentUrl, false);
+                    }
+                }
+            });
+        }
 
-        btnCloseTab.setOnClickListener(v -> closeCurrentTab());
+        if (btnNewTab != null) btnNewTab.setOnClickListener(v -> createNewTab("home"));
+
+        if (btnCloseTab != null) btnCloseTab.setOnClickListener(v -> closeCurrentTab());
     }
 
     private void triggerHomeSearch() {
@@ -667,14 +707,25 @@ public class MainActivity extends AppCompatActivity {
                     }
                 };
 
+                currentRawHtml = htmlContent;
+
                 // Reconstruct the page using the WebsiteReconstructionEngine
                 WebsiteReconstructionEngine.ReconstructedPage reconstructedPage = WebsiteReconstructionEngine.reconstruct(cleanedHtml, config.baseUrl);
                 tab.rootLayout = reconstructedPage.rootLayout;
                 tab.anchorMap = reconstructedPage.anchorMap;
                 tab.pageTitle = finalPageTitle;
 
+                HistoryManager.addHistory(MainActivity.this, finalPageTitle, config.baseUrl);
+
                 if (tabList.indexOf(tab) == currentTabIdx) {
                     renderNativeTree(tab);
+
+                    if (addToHistory) {
+                        scrollView.post(() -> scrollView.scrollTo(0, 0));
+                    } else {
+                        final int savedY = tab.getCurrentScrollY();
+                        scrollView.post(() -> scrollView.scrollTo(0, savedY));
+                    }
 
                     // Update tab text UI
                     android.widget.TextView tv = (android.widget.TextView) tabContainer.getChildAt(currentTabIdx);
@@ -692,15 +743,17 @@ public class MainActivity extends AppCompatActivity {
     private void renderNativeTree(Tab tab) {
         if (tab == null || pageLayoutContainer == null) return;
         if (tab.rootLayout != null) {
-            scrollView.setBackgroundColor(currentReaderTheme.backgroundColor);
-            pageLayoutContainer.setBackgroundColor(currentReaderTheme.backgroundColor);
+            com.example.browser.reconstruction.ReaderTheme theme = currentReaderTheme;
+            scrollView.setBackgroundColor(theme.backgroundColor);
+            pageLayoutContainer.setBackgroundColor(theme.backgroundColor);
+
             com.example.browser.reconstruction.NativeLayoutRenderer.renderTree(
                     MainActivity.this,
                     pageLayoutContainer,
                     tab.rootLayout,
                     href -> handleLinkClick(href, tab),
                     id -> scrollToElement(id),
-                    currentReaderTheme
+                    theme
             );
         } else if (tab.pageContent != null) {
             pageLayoutContainer.removeAllViews();
@@ -732,10 +785,12 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(24));
+        layout.setBackgroundColor(android.graphics.Color.parseColor("#1C1B1F"));
 
         TextView title = new TextView(this);
         title.setText("Table of Contents");
         title.setTextSize(18f);
+        title.setTextColor(android.graphics.Color.WHITE);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         title.setPadding(0, 0, 0, dpToPx(12));
         layout.addView(title);
@@ -750,7 +805,7 @@ public class MainActivity extends AppCompatActivity {
             itemTv.setPadding(indent + dpToPx(8), dpToPx(10), dpToPx(8), dpToPx(10));
             itemTv.setText((item.level > 1 ? "• " : "") + item.title);
             itemTv.setTextSize(item.level == 1 ? 16f : 14f);
-            itemTv.setTextColor(item.level == 1 ? android.graphics.Color.parseColor("#1976D2") : android.graphics.Color.parseColor("#333333"));
+            itemTv.setTextColor(item.level == 1 ? android.graphics.Color.parseColor("#90CAF9") : android.graphics.Color.WHITE);
             itemTv.setOnClickListener(v -> {
                 dialog.dismiss();
                 if (!item.id.isEmpty()) {
@@ -773,10 +828,12 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(24));
+        layout.setBackgroundColor(android.graphics.Color.parseColor("#1C1B1F"));
 
         TextView title = new TextView(this);
         title.setText("Select Reader Theme");
         title.setTextSize(18f);
+        title.setTextColor(android.graphics.Color.WHITE);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         title.setPadding(0, 0, 0, dpToPx(12));
         layout.addView(title);
@@ -787,11 +844,16 @@ public class MainActivity extends AppCompatActivity {
             themeOption.setText(t.displayName);
             themeOption.setTextSize(16f);
             themeOption.setPadding(dpToPx(12), dpToPx(12), dpToPx(12), dpToPx(12));
-            themeOption.setTextColor(t.textColor);
+
+            int bg = t.backgroundColor;
+            int textColor = t.textColor;
+            int border = t.borderColor;
+
+            themeOption.setTextColor(textColor);
 
             GradientDrawable gd = new GradientDrawable();
-            gd.setColor(t.backgroundColor);
-            gd.setStroke(dpToPx(2), t.borderColor);
+            gd.setColor(bg);
+            gd.setStroke(dpToPx(2), border);
             gd.setCornerRadius(dpToPx(8));
             themeOption.setBackground(gd);
 
@@ -812,6 +874,211 @@ public class MainActivity extends AppCompatActivity {
 
         dialog.setContentView(layout);
         dialog.show();
+    }
+
+    private int getDynamicColor(int attr, int defaultColor) {
+        try {
+            android.util.TypedValue typedValue = new android.util.TypedValue();
+            if (getTheme().resolveAttribute(attr, typedValue, true)) {
+                return typedValue.data;
+            }
+        } catch (Exception ignored) {}
+        return defaultColor;
+    }
+
+    private void saveCurrentPageBookmark() {
+        if (currentTabIdx < 0 || currentTabIdx >= tabList.size()) return;
+        Tab tab = tabList.get(currentTabIdx);
+        if ("home".equals(tab.currentUrl)) {
+            Toast.makeText(this, "Cannot bookmark Home page", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String html = currentRawHtml != null ? currentRawHtml : "";
+        boolean saved = BookmarkManager.saveBookmark(this, tab.pageTitle, tab.currentUrl, html);
+        if (saved) {
+            Toast.makeText(this, "Saved Offline Bookmark!", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "Failed to save bookmark", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showBookmarksSheet() {
+        com.google.android.material.bottomsheet.BottomSheetDialog dialog =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(24));
+        layout.setBackgroundColor(android.graphics.Color.parseColor("#1C1B1F"));
+
+        TextView title = new TextView(this);
+        title.setText("Saved Offline Bookmarks");
+        title.setTextSize(18f);
+        title.setTextColor(android.graphics.Color.WHITE);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        title.setPadding(0, 0, 0, dpToPx(12));
+        layout.addView(title);
+
+        List<BookmarkManager.BookmarkItem> bookmarks = BookmarkManager.getBookmarks(this);
+        if (bookmarks.isEmpty()) {
+            TextView emptyTv = new TextView(this);
+            emptyTv.setText("No saved bookmarks yet.\nClick the star button on any page to save it for offline reading.");
+            emptyTv.setTextSize(14f);
+            emptyTv.setTextColor(android.graphics.Color.parseColor("#E6E1E5"));
+            emptyTv.setPadding(0, dpToPx(16), 0, dpToPx(16));
+            layout.addView(emptyTv);
+        } else {
+            androidx.core.widget.NestedScrollView sheetScroll = new androidx.core.widget.NestedScrollView(this);
+            LinearLayout itemsList = new LinearLayout(this);
+            itemsList.setOrientation(LinearLayout.VERTICAL);
+
+            for (BookmarkManager.BookmarkItem bm : bookmarks) {
+                LinearLayout row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setPadding(dpToPx(8), dpToPx(12), dpToPx(8), dpToPx(12));
+                row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
+                TextView itemTv = new TextView(this);
+                itemTv.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+                itemTv.setText(bm.title + "\n" + bm.url);
+                itemTv.setTextSize(14f);
+                itemTv.setTextColor(android.graphics.Color.WHITE);
+                itemTv.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    String offlineHtml = BookmarkManager.getOfflineContent(MainActivity.this, bm.id);
+                    if (offlineHtml != null && !offlineHtml.isEmpty()) {
+                        renderOfflinePage(bm.title, bm.url, offlineHtml);
+                    } else {
+                        loadUrl(bm.url, true);
+                    }
+                });
+                row.addView(itemTv);
+
+                ImageButton btnDel = new ImageButton(this);
+                btnDel.setImageResource(android.R.drawable.ic_menu_delete);
+                btnDel.setBackgroundResource(android.R.drawable.btn_dialog);
+                btnDel.setOnClickListener(v -> {
+                    BookmarkManager.deleteBookmark(MainActivity.this, bm.id);
+                    dialog.dismiss();
+                    Toast.makeText(MainActivity.this, "Bookmark deleted", Toast.LENGTH_SHORT).show();
+                });
+                row.addView(btnDel);
+
+                itemsList.addView(row);
+            }
+            sheetScroll.addView(itemsList);
+            layout.addView(sheetScroll);
+        }
+
+        dialog.setContentView(layout);
+        dialog.show();
+    }
+
+    private void showHistorySheet() {
+        com.google.android.material.bottomsheet.BottomSheetDialog dialog =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(24));
+        layout.setBackgroundColor(android.graphics.Color.parseColor("#1C1B1F"));
+
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        header.setPadding(0, 0, 0, dpToPx(12));
+
+        TextView title = new TextView(this);
+        title.setText("Browsing History");
+        title.setTextSize(18f);
+        title.setTextColor(android.graphics.Color.WHITE);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        header.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+
+        TextView clearBtn = new TextView(this);
+        clearBtn.setText("CLEAR HISTORY");
+        clearBtn.setTextSize(12f);
+        clearBtn.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        clearBtn.setTextColor(android.graphics.Color.parseColor("#FF8A80"));
+        clearBtn.setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4));
+        clearBtn.setOnClickListener(v -> {
+            HistoryManager.clearHistory(MainActivity.this);
+            dialog.dismiss();
+            Toast.makeText(MainActivity.this, "History cleared", Toast.LENGTH_SHORT).show();
+        });
+        header.addView(clearBtn);
+
+        layout.addView(header);
+
+        List<HistoryManager.HistoryItem> history = HistoryManager.getHistory(this);
+        if (history.isEmpty()) {
+            TextView emptyTv = new TextView(this);
+            emptyTv.setText("No browsing history found.");
+            emptyTv.setTextSize(14f);
+            emptyTv.setTextColor(android.graphics.Color.parseColor("#E6E1E5"));
+            emptyTv.setPadding(0, dpToPx(16), 0, dpToPx(16));
+            layout.addView(emptyTv);
+        } else {
+            androidx.core.widget.NestedScrollView sheetScroll = new androidx.core.widget.NestedScrollView(this);
+            LinearLayout itemsList = new LinearLayout(this);
+            itemsList.setOrientation(LinearLayout.VERTICAL);
+
+            for (HistoryManager.HistoryItem item : history) {
+                LinearLayout row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setPadding(dpToPx(8), dpToPx(10), dpToPx(8), dpToPx(10));
+                row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
+                TextView itemTv = new TextView(this);
+                itemTv.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+                itemTv.setText(item.title + "\n" + item.url);
+                itemTv.setTextSize(14f);
+                itemTv.setTextColor(android.graphics.Color.WHITE);
+                itemTv.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    loadUrl(item.url, true);
+                });
+                row.addView(itemTv);
+
+                ImageButton btnDel = new ImageButton(this);
+                btnDel.setImageResource(android.R.drawable.ic_menu_delete);
+                btnDel.setBackgroundResource(android.R.drawable.btn_dialog);
+                btnDel.setOnClickListener(v -> {
+                    HistoryManager.deleteHistoryItem(MainActivity.this, item.id);
+                    dialog.dismiss();
+                    showHistorySheet();
+                });
+                row.addView(btnDel);
+
+                itemsList.addView(row);
+            }
+            sheetScroll.addView(itemsList);
+            layout.addView(sheetScroll);
+        }
+
+        dialog.setContentView(layout);
+        dialog.show();
+    }
+
+    private void renderOfflinePage(String pageTitle, String url, String html) {
+        if (currentTabIdx < 0 || currentTabIdx >= tabList.size()) return;
+        Tab tab = tabList.get(currentTabIdx);
+        tab.currentUrl = url;
+        tab.pageTitle = pageTitle;
+
+        executor.execute(() -> {
+            com.example.browser.reconstruction.WebsiteReconstructionEngine.ReconstructedPage reconstructed =
+                    com.example.browser.reconstruction.WebsiteReconstructionEngine.reconstruct(html, url);
+            tab.rootLayout = reconstructed.rootLayout;
+            tab.anchorMap = reconstructed.anchorMap;
+
+            runOnUiThread(() -> {
+                renderNativeTree(tab);
+                urlInput.setText(url);
+                scrollView.post(() -> scrollView.scrollTo(0, 0));
+                Toast.makeText(MainActivity.this, "Reading Offline Saved Copy", Toast.LENGTH_SHORT).show();
+            });
+        });
     }
 
     private void toggleTextToSpeech() {
@@ -841,6 +1108,92 @@ public class MainActivity extends AppCompatActivity {
         textToSpeech.speak(readableText, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "VelocityTTS");
     }
 
+    private void showMoreOptionsSheet() {
+        com.google.android.material.bottomsheet.BottomSheetDialog dialog =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(24));
+        layout.setBackgroundColor(android.graphics.Color.parseColor("#1C1B1F"));
+
+        TextView title = new TextView(this);
+        title.setText("More Options");
+        title.setTextSize(18f);
+        title.setTextColor(android.graphics.Color.WHITE);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        title.setPadding(0, 0, 0, dpToPx(16));
+        layout.addView(title);
+
+        addMoreOptionItem(layout, "📖  Table of Contents", v -> {
+            dialog.dismiss();
+            showArticleOutline();
+        });
+
+        addMoreOptionItem(layout, "🗣️  Read Aloud (TTS)", v -> {
+            dialog.dismiss();
+            toggleTextToSpeech();
+        });
+
+        addMoreOptionItem(layout, "🎨  Reader Theme", v -> {
+            dialog.dismiss();
+            showThemeSelector();
+        });
+
+        addMoreOptionItem(layout, "⭐  Save Page Offline", v -> {
+            dialog.dismiss();
+            saveCurrentPageBookmark();
+        });
+
+        addMoreOptionItem(layout, "🔖  Saved Bookmarks", v -> {
+            dialog.dismiss();
+            showBookmarksSheet();
+        });
+
+        addMoreOptionItem(layout, "🕒  Browsing History", v -> {
+            dialog.dismiss();
+            showHistorySheet();
+        });
+
+        addMoreOptionItem(layout, "🔄  Reload Page", v -> {
+            dialog.dismiss();
+            if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
+                Tab tab = tabList.get(currentTabIdx);
+                if (!"home".equals(tab.currentUrl)) {
+                    loadUrl(tab.currentUrl, false);
+                }
+            }
+        });
+
+        addMoreOptionItem(layout, "❌  Close Current Tab", v -> {
+            dialog.dismiss();
+            closeCurrentTab();
+        });
+
+        dialog.setContentView(layout);
+        dialog.show();
+    }
+
+    private void addMoreOptionItem(LinearLayout container, String label, View.OnClickListener listener) {
+        TextView tv = new TextView(this);
+        tv.setText(label);
+        tv.setTextSize(16f);
+        tv.setTextColor(android.graphics.Color.WHITE);
+        tv.setPadding(dpToPx(12), dpToPx(14), dpToPx(12), dpToPx(14));
+        tv.setOnClickListener(listener);
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, dpToPx(2), 0, dpToPx(2));
+        tv.setLayoutParams(lp);
+
+        GradientDrawable gd = new GradientDrawable();
+        gd.setColor(android.graphics.Color.parseColor("#2B2930"));
+        gd.setCornerRadius(dpToPx(8));
+        tv.setBackground(gd);
+
+        container.addView(tv);
+    }
+
     private String extractAllText(com.example.browser.reconstruction.LayoutNode node) {
         if (node == null) return "";
         StringBuilder sb = new StringBuilder();
@@ -864,6 +1217,9 @@ public class MainActivity extends AppCompatActivity {
                 scrollToElement(id);
             }
             return;
+        }
+        if (tab != null && scrollView != null) {
+            tab.saveCurrentScrollY(scrollView.getScrollY());
         }
         String resolvedUrl = href;
         if (!href.startsWith("http://") && !href.startsWith("https://")) {
@@ -967,11 +1323,14 @@ public class MainActivity extends AppCompatActivity {
         if (currentTabIdx < 0 || currentTabIdx >= tabList.size()) return;
         Tab tab = tabList.get(currentTabIdx);
         
-        btnBack.setEnabled(tab.canGoBack());
-        btnForward.setEnabled(tab.canGoForward());
-        
-        btnBack.setAlpha(tab.canGoBack() ? 1.0f : 0.3f);
-        btnForward.setAlpha(tab.canGoForward() ? 1.0f : 0.3f);
+        if (btnBack != null) {
+            btnBack.setEnabled(tab.canGoBack());
+            btnBack.setAlpha(tab.canGoBack() ? 1.0f : 0.3f);
+        }
+        if (btnForward != null) {
+            btnForward.setEnabled(tab.canGoForward());
+            btnForward.setAlpha(tab.canGoForward() ? 1.0f : 0.3f);
+        }
     }
 
     @Override

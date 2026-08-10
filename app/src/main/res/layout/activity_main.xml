@@ -90,76 +90,181 @@
             android:paddingEnd="8dp"/>
     </HorizontalScrollView>
 
-    <!-- Home Page Container -->
-    <LinearLayout
+    <!-- Reading Hub Home Page Container -->
+    <ScrollView
         android:id="@+id/homePageContainer"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:padding="24dp"
+        android:background="?attr/colorSurface"
         android:visibility="visible">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Velocity"
-            android:textSize="40sp"
-            android:textStyle="bold"
-            android:textColor="?attr/colorPrimary"
-            android:layout_marginBottom="8dp"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Dillo + JS Private Web Browser"
-            android:textSize="14sp"
-            android:textColor="?attr/colorOutline"
-            android:layout_marginBottom="32dp"/>
-
-        <!-- Custom Search Bar inside Home Page -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:orientation="horizontal"
-            android:background="@drawable/address_bar_bg"
-            android:gravity="center_vertical"
-            android:paddingLeft="12dp"
-            android:paddingRight="8dp"
-            android:layout_marginLeft="16dp"
-            android:layout_marginRight="16dp">
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp"
+            android:gravity="center_horizontal">
 
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:src="@android:drawable/ic_menu_search"
-                android:tint="?attr/colorOnSurfaceVariant" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="VELOCITY READER"
+                android:textSize="26sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.05"
+                android:textColor="?attr/colorPrimary"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="4dp"/>
 
-            <EditText
-                android:id="@+id/homeSearchInput"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:layout_marginLeft="8dp"
-                android:layout_marginRight="8dp"
-                android:hint="Search DuckDuckGo..."
-                android:background="@null"
-                android:singleLine="true"
-                android:imeOptions="actionSearch"
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Distraction-Free Native Reading Hub"
+                android:textSize="14sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:layout_marginBottom="24dp"/>
+
+            <!-- Search & Knowledge Bar -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:orientation="horizontal"
+                android:background="@drawable/address_bar_bg"
+                android:gravity="center_vertical"
+                android:paddingLeft="14dp"
+                android:paddingRight="10dp"
+                android:layout_marginBottom="24dp">
+
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:src="@android:drawable/ic_menu_search"
+                    android:tint="?attr/colorOnSurfaceVariant" />
+
+                <EditText
+                    android:id="@+id/homeSearchInput"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:layout_marginLeft="8dp"
+                    android:layout_marginRight="8dp"
+                    android:hint="Search Wikipedia or Web..."
+                    android:background="@null"
+                    android:singleLine="true"
+                    android:imeOptions="actionSearch"
+                    android:textSize="15sp"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textColorHint="?attr/colorOnSurfaceVariant"/>
+
+                <ImageButton
+                    android:id="@+id/btnHomeSearchGo"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:src="@android:drawable/ic_menu_send"
+                    android:tint="?attr/colorPrimary" />
+            </LinearLayout>
+
+            <!-- Quick Reading Hub Categories -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Quick Topics &amp; Sources"
                 android:textSize="15sp"
+                android:textStyle="bold"
                 android:textColor="?attr/colorOnSurface"
-                android:textColorHint="?attr/colorOnSurfaceVariant"/>
+                android:layout_marginBottom="12dp"/>
 
-            <ImageButton
-                android:id="@+id/btnHomeSearchGo"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:src="@android:drawable/ic_media_play"
-                android:tint="?attr/colorPrimary" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="12dp">
+
+                <Button
+                    android:id="@+id/btnCategoryWiki"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginRight="6dp"
+                    android:text="🧠 Wikipedia"
+                    android:textSize="12sp"/>
+
+                <Button
+                    android:id="@+id/btnCategoryNews"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginLeft="6dp"
+                    android:text="📰 News"
+                    android:textSize="12sp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="24dp">
+
+                <Button
+                    android:id="@+id/btnCategoryTech"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginRight="6dp"
+                    android:text="🔬 Tech &amp; Science"
+                    android:textSize="12sp"/>
+
+                <Button
+                    android:id="@+id/btnCategoryBooks"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginLeft="6dp"
+                    android:text="📚 Gutenberg Books"
+                    android:textSize="12sp"/>
+            </LinearLayout>
+
+            <!-- Offline Library / Bookmarks Quick Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Reading Library"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorOnSurface"
+                android:layout_marginBottom="12dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnHomeBookmarks"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginRight="6dp"
+                    android:text="⭐ Saved Articles"
+                    android:textSize="13sp"/>
+
+                <Button
+                    android:id="@+id/btnHomeHistory"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginLeft="6dp"
+                    android:text="🕒 History"
+                    android:textSize="13sp"/>
+            </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
+    </ScrollView>
 
     <!-- Scrollable Native Page Layout Container -->
     <androidx.core.widget.NestedScrollView
@@ -202,7 +307,7 @@
         <ImageButton
             android:id="@+id/btnBack"
             android:layout_width="0dp"
-            android:layout_height="44dp"
+            android:layout_height="48dp"
             android:layout_weight="1"
             android:src="@android:drawable/ic_media_previous"
             android:background="?android:attr/selectableItemBackgroundBorderless"
@@ -212,7 +317,7 @@
         <ImageButton
             android:id="@+id/btnForward"
             android:layout_width="0dp"
-            android:layout_height="44dp"
+            android:layout_height="48dp"
             android:layout_weight="1"
             android:src="@android:drawable/ic_media_next"
             android:background="?android:attr/selectableItemBackgroundBorderless"
@@ -220,9 +325,19 @@
             android:contentDescription="Forward" />
 
         <ImageButton
+            android:id="@+id/btnOutline"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:src="@android:drawable/ic_menu_sort_by_size"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="?attr/colorPrimary"
+            android:contentDescription="Article Outline / Table of Contents" />
+
+        <ImageButton
             android:id="@+id/btnHome"
             android:layout_width="0dp"
-            android:layout_height="44dp"
+            android:layout_height="48dp"
             android:layout_weight="1"
             android:src="@android:drawable/ic_menu_info_details"
             android:background="?android:attr/selectableItemBackgroundBorderless"
@@ -230,49 +345,9 @@
             android:contentDescription="Home" />
 
         <ImageButton
-            android:id="@+id/btnRefresh"
-            android:layout_width="0dp"
-            android:layout_height="44dp"
-            android:layout_weight="1"
-            android:src="@android:drawable/ic_menu_rotate"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:tint="?attr/colorOnSurface"
-            android:contentDescription="Refresh" />
-
-        <ImageButton
-            android:id="@+id/btnOutline"
-            android:layout_width="0dp"
-            android:layout_height="44dp"
-            android:layout_weight="1"
-            android:src="@android:drawable/ic_menu_sort_by_size"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:tint="?attr/colorPrimary"
-            android:contentDescription="Article Outline" />
-
-        <ImageButton
-            android:id="@+id/btnTts"
-            android:layout_width="0dp"
-            android:layout_height="44dp"
-            android:layout_weight="1"
-            android:src="@android:drawable/ic_btn_speak_now"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:tint="?attr/colorPrimary"
-            android:contentDescription="Read Aloud" />
-
-        <ImageButton
-            android:id="@+id/btnTheme"
-            android:layout_width="0dp"
-            android:layout_height="44dp"
-            android:layout_weight="1"
-            android:src="@android:drawable/ic_menu_view"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:tint="?attr/colorPrimary"
-            android:contentDescription="Reader Theme" />
-
-        <ImageButton
             android:id="@+id/btnNewTab"
             android:layout_width="0dp"
-            android:layout_height="44dp"
+            android:layout_height="48dp"
             android:layout_weight="1"
             android:src="@android:drawable/ic_menu_add"
             android:background="?android:attr/selectableItemBackgroundBorderless"
@@ -280,13 +355,13 @@
             android:contentDescription="New Tab" />
 
         <ImageButton
-            android:id="@+id/btnCloseTab"
+            android:id="@+id/btnMore"
             android:layout_width="0dp"
-            android:layout_height="44dp"
+            android:layout_height="48dp"
             android:layout_weight="1"
-            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:src="@android:drawable/ic_menu_more"
             android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:tint="?attr/colorOnSurface"
-            android:contentDescription="Close Tab" />
+            android:tint="?attr/colorPrimary"
+            android:contentDescription="More Options" />
     </LinearLayout>
 </LinearLayout>

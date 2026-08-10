@@ -27,6 +27,7 @@ import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.util.TypedValue;
 
 import com.example.browser.ImageLoader;
 
@@ -224,7 +225,6 @@ public final class NativeLayoutRenderer {
         ReaderTheme activeTheme = theme != null ? theme : ReaderTheme.LIGHT;
 
         container.removeAllViews();
-        container.setBackgroundColor(activeTheme.backgroundColor);
 
         RendererState state = new RendererState(
                 context,
@@ -232,6 +232,8 @@ public final class NativeLayoutRenderer {
                 anchorListener,
                 activeTheme
         );
+
+        container.setBackgroundColor(state.getBackgroundColor());
 
         collectAnchors(rootNode, state);
 
@@ -266,6 +268,41 @@ public final class NativeLayoutRenderer {
             this.anchorListener = anchorListener;
             this.theme = theme != null ? theme : ReaderTheme.LIGHT;
         }
+
+        int getBackgroundColor() {
+            return theme.backgroundColor;
+        }
+
+        int getTextColor() {
+            return theme.textColor;
+        }
+
+        int getLinkColor() {
+            return theme.linkColor;
+        }
+
+        int getCardBackgroundColor() {
+            return theme.cardBackgroundColor;
+        }
+
+        int getBorderColor() {
+            return theme.borderColor;
+        }
+    }
+
+    private static boolean isDarkColor(int color) {
+        double luminance = (0.299 * Color.red(color) + 0.587 * Color.green(color) + 0.114 * Color.blue(color)) / 255.0;
+        return luminance < 0.4;
+    }
+
+    public static int resolveDynamicColor(Context context, int attr, int defaultColor) {
+        try {
+            TypedValue typedValue = new TypedValue();
+            if (context.getTheme().resolveAttribute(attr, typedValue, true)) {
+                return typedValue.data;
+            }
+        } catch (Exception ignored) {}
+        return defaultColor;
     }
 
     // ------------------------------------------------------------
@@ -545,6 +582,7 @@ public final class NativeLayoutRenderer {
         );
 
         tv.setIncludeFontPadding(true);
+        tv.setTextIsSelectable(true);
 
         tv.setText(
                 buildStyledText(
@@ -712,10 +750,14 @@ public final class NativeLayoutRenderer {
                         css(node, "color")
                 );
 
+        if (color != null && isDarkColor(state.getBackgroundColor()) && isDarkColor(color)) {
+            color = state.getTextColor();
+        }
+
         tv.setTextColor(
                 color != null
                         ? color
-                        : state.theme.textColor
+                        : state.getTextColor()
         );
 
         // --------------------------------------------------------
@@ -1066,7 +1108,8 @@ public final class NativeLayoutRenderer {
         android.widget.TableLayout table = new android.widget.TableLayout(state.context);
         table.setStretchAllColumns(true);
 
-        int borderColor = parseColorOrDefault(css(node, "border-color"), state.theme.borderColor);
+        Integer parsedBorderColor = parseColorSafe(css(node, "border-color"));
+        int borderColor = (parsedBorderColor != null && !isDarkColor(parsedBorderColor)) ? parsedBorderColor : state.theme.borderColor;
 
         GradientDrawable tableBg = new GradientDrawable();
         tableBg.setColor(Color.TRANSPARENT);
@@ -1104,7 +1147,7 @@ public final class NativeLayoutRenderer {
                 cellView.setPadding(dpToPx(state.context, 10), dpToPx(state.context, 8), dpToPx(state.context, 10), dpToPx(state.context, 8));
 
                 GradientDrawable cellBg = new GradientDrawable();
-                cellBg.setColor(isHeader ? Color.rgb(240, 242, 245) : state.theme.backgroundColor);
+                cellBg.setColor(isHeader ? state.theme.cardBackgroundColor : state.theme.backgroundColor);
                 cellBg.setStroke(dpToPx(state.context, 1), borderColor);
                 cellView.setBackground(cellBg);
 
@@ -1120,9 +1163,7 @@ public final class NativeLayoutRenderer {
 
                 renderContainerChildren(state, cellView, cellNode, depth + 1);
 
-                if (isHeader) {
-                    applyBoldToTextViews(cellView);
-                }
+                applyTableStylesToChildren(state, cellView, isHeader);
 
                 rowView.addView(cellView);
             }
@@ -3634,33 +3675,24 @@ public final class NativeLayoutRenderer {
         return br;
     }
 
-    private static void applyBoldToTextViews(
-            ViewGroup group
-    ) {
-        for (int i = 0;
-             i < group.getChildCount();
-             i++) {
-
-            View child =
-                    group.getChildAt(i);
-
+    private static void applyTableStylesToChildren(RendererState state, ViewGroup parent, boolean isHeader) {
+        if (parent == null) return;
+        for (int i = 0; i < parent.getChildCount(); i++) {
+            View child = parent.getChildAt(i);
             if (child instanceof TextView) {
-
-                TextView tv =
-                        (TextView) child;
-
-                tv.setTypeface(
-                        tv.getTypeface(),
-                        Typeface.BOLD
-                );
-
-            } else if (
-                    child instanceof ViewGroup
-            ) {
-
-                applyBoldToTextViews(
-                        (ViewGroup) child
-                );
+                TextView tv = (TextView) child;
+                tv.setTextIsSelectable(true);
+                if (isDarkColor(state.getBackgroundColor())) {
+                    int currentColor = tv.getCurrentTextColor();
+                    if (isDarkColor(currentColor)) {
+                        tv.setTextColor(state.getTextColor());
+                    }
+                }
+                if (isHeader) {
+                    tv.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+                }
+            } else if (child instanceof ViewGroup) {
+                applyTableStylesToChildren(state, (ViewGroup) child, isHeader);
             }
         }
     }

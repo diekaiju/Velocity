@@ -143,14 +143,23 @@ public class ImageLoader {
     }
 
     private byte[] downloadBytes(String urlStr) throws Exception {
+        if (urlStr == null || urlStr.trim().isEmpty()) return null;
+        urlStr = urlStr.trim();
+        if (urlStr.startsWith("//")) {
+            urlStr = "https:" + urlStr;
+        } else if (!urlStr.startsWith("http://") && !urlStr.startsWith("https://")) {
+            urlStr = "https://" + urlStr;
+        }
+
         URL url = new URL(urlStr);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setConnectTimeout(10000);
         conn.setReadTimeout(15000);
         conn.setInstanceFollowRedirects(true);
-        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 VelocityBrowser/1.0");
         conn.setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8");
         conn.setRequestProperty("Accept-Language", "en-US,en;q=0.9");
+        conn.setRequestProperty("Referer", "https://en.wikipedia.org/");
 
         int status = conn.getResponseCode();
         // Handle manual redirect if auto redirect fails or for certain redirect codes
@@ -158,6 +167,11 @@ public class ImageLoader {
             String redirectUrl = conn.getHeaderField("Location");
             if (redirectUrl != null) {
                 conn.disconnect();
+                if (redirectUrl.startsWith("//")) {
+                    redirectUrl = "https:" + redirectUrl;
+                } else if (redirectUrl.startsWith("/")) {
+                    redirectUrl = "https://en.wikipedia.org" + redirectUrl;
+                }
                 return downloadBytes(redirectUrl);
             }
         }
