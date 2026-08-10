@@ -148,7 +148,9 @@ public class ImageLoader {
         conn.setConnectTimeout(10000);
         conn.setReadTimeout(15000);
         conn.setInstanceFollowRedirects(true);
-        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Android; Mobile)");
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        conn.setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8");
+        conn.setRequestProperty("Accept-Language", "en-US,en;q=0.9");
 
         int status = conn.getResponseCode();
         // Handle manual redirect if auto redirect fails or for certain redirect codes
@@ -161,7 +163,7 @@ public class ImageLoader {
         }
 
         if (status != HttpURLConnection.HTTP_OK) {
-            throw new Exception("HTTP error code: " + status);
+            throw new Exception("HTTP error code: " + status + " for URL: " + urlStr);
         }
 
         try (InputStream in = new BufferedInputStream(conn.getInputStream());

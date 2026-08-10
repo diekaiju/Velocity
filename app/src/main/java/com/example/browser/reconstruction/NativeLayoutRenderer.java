@@ -336,144 +336,76 @@ public final class NativeLayoutRenderer {
         // Explicit special elements
         // --------------------------------------------------------
 
+        View v = null;
         switch (tag) {
-
             case "br":
-                return renderBreak(
-                        state,
-                        parent
-                );
-
+                v = renderBreak(state, parent);
+                break;
             case "hr":
-                return renderHr(
-                        state,
-                        parent,
-                        node
-                );
-
+                v = renderHr(state, parent, node);
+                break;
             case "img":
             case "image":
-                return renderImage(
-                        state,
-                        parent,
-                        node
-                );
-
+                v = renderImage(state, parent, node);
+                break;
             case "table":
-                return renderTable(
-                        state,
-                        parent,
-                        node,
-                        depth
-                );
-
+                v = renderTable(state, parent, node, depth);
+                break;
             case "ul":
-                return renderList(
-                        state,
-                        parent,
-                        node,
-                        false,
-                        depth
-                );
-
+                v = renderList(state, parent, node, false, depth);
+                break;
             case "ol":
-                return renderList(
-                        state,
-                        parent,
-                        node,
-                        true,
-                        depth
-                );
-
+                v = renderList(state, parent, node, true, depth);
+                break;
             case "blockquote":
-                return renderBlockquote(
-                        state,
-                        parent,
-                        node,
-                        depth
-                );
-
+                v = renderBlockquote(state, parent, node, depth);
+                break;
             case "pre":
-                return renderPre(
-                        state,
-                        parent,
-                        node
-                );
-
+                v = renderPre(state, parent, node);
+                break;
             case "button":
-                return renderButton(
-                        state,
-                        parent,
-                        node
-                );
-
+                v = renderButton(state, parent, node);
+                break;
             case "input":
-                return renderInput(
-                        state,
-                        parent,
-                        node
-                );
-
+                v = renderInput(state, parent, node);
+                break;
             case "textarea":
-                return renderTextarea(
-                        state,
-                        parent,
-                        node
-                );
-
+                v = renderTextarea(state, parent, node);
+                break;
             case "select":
-                return renderSelect(
-                        state,
-                        parent,
-                        node
-                );
-
+                v = renderSelect(state, parent, node);
+                break;
             case "details":
-                return renderDetails(
-                        state,
-                        parent,
-                        node,
-                        depth
-                );
-
+                v = renderDetails(state, parent, node, depth);
+                break;
             case "summary":
-                return renderSummary(
-                        state,
-                        parent,
-                        node
-                );
-
+                v = renderSummary(state, parent, node);
+                break;
             case "figure":
-                return renderFigure(
-                        state,
-                        parent,
-                        node,
-                        depth
-                );
+                v = renderFigure(state, parent, node, depth);
+                break;
+            default:
+                if (isTextLike(node)) {
+                    v = renderTextLike(state, parent, node);
+                } else {
+                    v = renderContainer(state, parent, node, depth);
+                }
+                break;
         }
 
-        // --------------------------------------------------------
-        // Text-like elements
-        // --------------------------------------------------------
-
-        if (isTextLike(node)) {
-            return renderTextLike(
-                    state,
-                    parent,
-                    node
-            );
+        if (v != null && node.element != null) {
+            String id = node.element.id();
+            if (id != null && !id.trim().isEmpty()) {
+                v.setTag("anchor:" + id.trim());
+            } else {
+                String name = node.element.attr("name");
+                if (name != null && !name.trim().isEmpty()) {
+                    v.setTag("anchor:" + name.trim());
+                }
+            }
         }
 
-        // --------------------------------------------------------
-        // Generic container
-        // --------------------------------------------------------
-
-        return renderContainer(
-                state,
-                parent,
-                node,
-                depth
-        );
+        return v;
     }
 
     // ------------------------------------------------------------
@@ -930,16 +862,19 @@ public final class NativeLayoutRenderer {
     ) {
         Element element = node.element;
 
-        String src =
-                firstNonEmpty(
-                        element.attr("src"),
-                        element.attr("data-src"),
-                        element.attr("data-lazy-src"),
-                        element.attr("data-original")
-                );
+        String src = firstNonEmpty(
+                element.absUrl("src"),
+                element.attr("src"),
+                element.absUrl("data-src"),
+                element.attr("data-src"),
+                element.absUrl("data-lazy-src"),
+                element.attr("data-lazy-src"),
+                element.absUrl("data-original"),
+                element.attr("data-original")
+        );
 
         if (src == null || src.trim().isEmpty()) {
-            String srcset = element.attr("srcset");
+            String srcset = firstNonEmpty(element.absUrl("srcset"), element.attr("srcset"));
             if (srcset != null && !srcset.trim().isEmpty()) {
                 src = srcset.split(",")[0].trim().split(" ")[0];
             }
@@ -949,11 +884,13 @@ public final class NativeLayoutRenderer {
             return null;
         }
 
-        // Clean fragment # identifiers (like #vw=100) from URL string
-        String cleanUrl = src;
-        int hashIdx = cleanUrl.indexOf('#');
-        if (hashIdx != -1) {
-            cleanUrl = cleanUrl.substring(0, hashIdx);
+        // Clean fragment # identifiers (like #vw=100) from URL string unless it's a data: URI
+        String cleanUrl = src.trim();
+        if (!cleanUrl.startsWith("data:")) {
+            int hashIdx = cleanUrl.indexOf('#');
+            if (hashIdx != -1) {
+                cleanUrl = cleanUrl.substring(0, hashIdx);
+            }
         }
 
         // Protocol-relative URLs starting with //
@@ -961,9 +898,9 @@ public final class NativeLayoutRenderer {
             cleanUrl = "https:" + cleanUrl;
         }
 
-        // Resolve relative URLs to absolute HTTP/HTTPS URLs using element baseUri
+        // Resolve relative URLs to absolute HTTP/HTTPS URLs
         if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://") && !cleanUrl.startsWith("data:")) {
-            String baseUri = element.baseUri();
+            String baseUri = firstNonEmpty(element.baseUri(), element.ownerDocument() != null ? element.ownerDocument().location() : null);
             if (baseUri != null && !baseUri.isEmpty()) {
                 try {
                     cleanUrl = new java.net.URL(new java.net.URL(baseUri), cleanUrl).toString();
@@ -973,10 +910,11 @@ public final class NativeLayoutRenderer {
 
         ImageView image = new ImageView(state.context);
         image.setAdjustViewBounds(true);
+        image.setMinimumHeight(dpToPx(state.context, 100));
         image.setScaleType(ImageView.ScaleType.FIT_CENTER);
 
-        int reqWidth = node.width > 0 ? dpToPx(state.context, node.width) : dpToPx(state.context, 480);
-        int reqHeight = node.height > 0 ? dpToPx(state.context, node.height) : dpToPx(state.context, 320);
+        int reqWidth = node.width > 0 ? dpToPx(state.context, node.width) : dpToPx(state.context, 600);
+        int reqHeight = node.height > 0 ? dpToPx(state.context, node.height) : dpToPx(state.context, 400);
 
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,

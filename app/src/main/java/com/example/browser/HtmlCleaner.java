@@ -469,73 +469,33 @@ public final class HtmlCleaner {
 
     private static void normalizeImages(Document document, Config config) {
         for (Element img : document.select("img")) {
-            String src = "";
-            String dataSrc = img.attr("data-src");
-            String dataOriginal = img.attr("data-original");
-            String dataLazy = img.attr("data-lazy-src");
-            String rawSrc = img.attr("src");
-            
-            if (img.hasAttr("srcset")) {
+            String src = firstNonEmpty(
+                    img.attr("src"),
+                    img.attr("data-src"),
+                    img.attr("data-original"),
+                    img.attr("data-lazy-src")
+            );
+
+            if ((src == null || src.trim().isEmpty()) && img.hasAttr("srcset")) {
                 String srcsetSrc = extractUrlFromSrcset(img.attr("srcset"));
-                if (!srcsetSrc.isEmpty() && !isPlaceholder(srcsetSrc)) {
+                if (!srcsetSrc.isEmpty()) {
                     src = srcsetSrc;
                 }
             }
-            
-            if (src.isEmpty()) {
-                if (!isPlaceholder(dataSrc)) {
-                    src = dataSrc;
-                } else if (!isPlaceholder(dataOriginal)) {
-                    src = dataOriginal;
-                } else if (!isPlaceholder(dataLazy)) {
-                    src = dataLazy;
-                } else if (!isPlaceholder(rawSrc)) {
-                    src = rawSrc;
-                } else {
-                    src = firstNonEmpty(dataSrc, dataOriginal, dataLazy, rawSrc);
+
+            if (src != null && !src.trim().isEmpty()) {
+                // Strip existing fragment if present before resolving
+                if (src.contains("#")) {
+                    src = src.substring(0, src.indexOf('#'));
                 }
-            }
-            
-            if (!src.isEmpty()) {
                 src = resolveUrl(config.baseUrl, src);
-                
-                String width = img.attr("width");
-                String height = img.attr("height");
-                if (!width.isEmpty() || !height.isEmpty()) {
-                    StringBuilder fragment = new StringBuilder();
-                    if (!width.isEmpty()) {
-                        fragment.append("vw=").append(width);
-                    }
-                    if (!height.isEmpty()) {
-                        if (fragment.length() > 0) fragment.append("&");
-                        fragment.append("vh=").append(height);
-                    }
-                    if (src.contains("#")) {
-                        src = src.substring(0, src.indexOf('#'));
-                    }
-                    src = src + "#" + fragment.toString();
-                }
-                
                 img.attr("src", src);
-            } else {
-                img.remove();
-                continue;
             }
-            
+
             String alt = img.attr("alt");
             if (alt == null || alt.trim().isEmpty()) {
                 img.attr("alt", "[Image]");
             }
-            
-            img.removeAttr("srcset")
-               .removeAttr("sizes")
-               .removeAttr("loading")
-               .removeAttr("decoding")
-               .removeAttr("fetchpriority")
-               .removeAttr("data-src")
-               .removeAttr("data-srcset")
-               .removeAttr("data-lazy-src")
-               .removeAttr("data-original");
         }
     }
 
