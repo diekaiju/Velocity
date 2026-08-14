@@ -59,6 +59,12 @@
 ```
 
 ---
+## Buy me a coffee
+
+If you want to support the developer:
+
+ [![PayPal](https://img.shields.io/badge/PayPal-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://paypal.me/diekaiju)
+
 
 ## 📄 License
 Licensed under the [MIT License](LICENSE).
