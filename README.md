@@ -47,7 +47,7 @@
 
 ### Prerequisites
 - Android Studio Ladybug (or newer) / JDK 17+
-- Android SDK 36 (minSdk 24)
+- Android SDK 36 (minSdk 21 / Android 5.0 Lollipop+)
 
 ### Build Commands
 ```bash

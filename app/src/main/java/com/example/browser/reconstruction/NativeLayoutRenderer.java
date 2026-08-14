@@ -256,6 +256,7 @@ public final class NativeLayoutRenderer {
         final AnchorListener anchorListener;
         final ReaderTheme theme;
         final Map<String, View> anchors = new HashMap<>();
+        final Map<org.jsoup.nodes.Element, EditText> inputFields = new HashMap<>();
 
         RendererState(
                 Context context,
@@ -496,6 +497,13 @@ public final class NativeLayoutRenderer {
                 );
 
         container.setLayoutParams(params);
+
+        String href = element.attr("href");
+        if ("a".equalsIgnoreCase(element.tagName()) || (href != null && !href.isEmpty())) {
+            container.setClickable(true);
+            container.setFocusable(true);
+            container.setOnClickListener(v -> handleLink(state, href));
+        }
 
         String id = element.id();
 
@@ -1102,9 +1110,6 @@ public final class NativeLayoutRenderer {
             LayoutNode node,
             int depth
     ) {
-        HorizontalScrollView horizontal = new HorizontalScrollView(state.context);
-        horizontal.setFillViewport(true);
-
         android.widget.TableLayout table = new android.widget.TableLayout(state.context);
         table.setStretchAllColumns(true);
 
@@ -1123,12 +1128,7 @@ public final class NativeLayoutRenderer {
         tableParams.setMargins(0, dpToPx(state.context, 8), 0, dpToPx(state.context, 8));
         table.setLayoutParams(tableParams);
 
-        horizontal.addView(table, new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        ));
-
-        parent.addView(horizontal);
+        parent.addView(table);
 
         List<LayoutNode> rows = getTableRows(node);
         for (LayoutNode rowNode : rows) {
@@ -1152,8 +1152,9 @@ public final class NativeLayoutRenderer {
                 cellView.setBackground(cellBg);
 
                 android.widget.TableRow.LayoutParams cellParams = new android.widget.TableRow.LayoutParams(
+                        0,
                         ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT
+                        1f
                 );
                 int colSpan = getSpan(cellNode, "colspan", 1);
                 if (colSpan > 1) {
@@ -1170,7 +1171,7 @@ public final class NativeLayoutRenderer {
             table.addView(rowView);
         }
 
-        return horizontal;
+        return table;
     }
 
     private static int calculateColumnCount(
@@ -1759,6 +1760,13 @@ public final class NativeLayoutRenderer {
                             href
                     )
             );
+        } else {
+            button.setOnClickListener(v -> {
+                org.jsoup.nodes.Element form = findParentForm(node.element);
+                if (form != null) {
+                    submitForm(state, form);
+                }
+            });
         }
 
         parent.addView(button);
@@ -1943,6 +1951,22 @@ public final class NativeLayoutRenderer {
         );
 
         edit.setLayoutParams(params);
+
+        state.inputFields.put(node.element, edit);
+        edit.setSingleLine(true);
+        edit.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH);
+        edit.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH ||
+                actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE ||
+                (event != null && event.getKeyCode() == android.view.KeyEvent.KEYCODE_ENTER && event.getAction() == android.view.KeyEvent.ACTION_DOWN)) {
+                org.jsoup.nodes.Element form = findParentForm(node.element);
+                if (form != null) {
+                    submitForm(state, form);
+                    return true;
+                }
+            }
+            return false;
+        });
 
         parent.addView(edit);
 
@@ -3171,6 +3195,10 @@ public final class NativeLayoutRenderer {
                         .tagName()
                         .toLowerCase(Locale.ROOT);
 
+        if (!node.element.select("img, image").isEmpty()) {
+            return false;
+        }
+
         return INLINE_TAGS.contains(tag) ||
                 tag.startsWith("h") ||
                 "p".equals(tag) ||
@@ -3724,5 +3752,72 @@ public final class NativeLayoutRenderer {
                 node,
                 depth
         );
+    }
+
+    private static org.jsoup.nodes.Element findParentForm(org.jsoup.nodes.Element element) {
+        org.jsoup.nodes.Element parent = element.parent();
+        while (parent != null) {
+            if ("form".equalsIgnoreCase(parent.tagName())) {
+                return parent;
+            }
+            parent = parent.parent();
+        }
+        return null;
+    }
+
+    private static void submitForm(RendererState state, org.jsoup.nodes.Element form) {
+        if (form == null) return;
+        String action = form.attr("action");
+        String method = form.attr("method");
+        if (method == null || method.isEmpty()) {
+            method = "GET";
+        }
+        
+        String baseUrl = form.ownerDocument() != null ? form.ownerDocument().baseUri() : "";
+        String targetUrl = action;
+        if (targetUrl == null || targetUrl.isEmpty()) {
+            targetUrl = baseUrl;
+        } else if (!targetUrl.startsWith("http://") && !targetUrl.startsWith("https://")) {
+            try {
+                java.net.URI uri = new java.net.URI(baseUrl).resolve(targetUrl);
+                targetUrl = uri.toString();
+            } catch (Exception ignored) {}
+        }
+        
+        org.jsoup.select.Elements inputs = form.select("input, textarea, select");
+        StringBuilder queryBuilder = new StringBuilder();
+        for (org.jsoup.nodes.Element input : inputs) {
+            String name = input.attr("name");
+            if (name == null || name.isEmpty()) continue;
+            
+            String value = "";
+            EditText et = state.inputFields.get(input);
+            if (et != null) {
+                value = et.getText().toString();
+            } else {
+                value = input.attr("value");
+            }
+            
+            if (queryBuilder.length() > 0) {
+                queryBuilder.append("&");
+            }
+            try {
+                queryBuilder.append(java.net.URLEncoder.encode(name, "UTF-8"))
+                            .append("=")
+                            .append(java.net.URLEncoder.encode(value, "UTF-8"));
+            } catch (Exception ignored) {}
+        }
+        
+        if (queryBuilder.length() > 0) {
+            if (targetUrl.contains("?")) {
+                targetUrl += "&" + queryBuilder.toString();
+            } else {
+                targetUrl += "?" + queryBuilder.toString();
+            }
+        }
+        
+        if (state.linkListener != null) {
+            state.linkListener.onLinkClick(targetUrl);
+        }
     }
 }

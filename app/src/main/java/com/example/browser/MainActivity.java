@@ -181,9 +181,9 @@ public class MainActivity extends AppCompatActivity {
     public String processUrl(String url) {
         if (!url.contains(".")) {
             try {
-                return "https://html.duckduckgo.com/html?q=" + java.net.URLEncoder.encode(url, "UTF-8");
+                return "https://lite.duckduckgo.com/lite/?q=" + java.net.URLEncoder.encode(url, "UTF-8");
             } catch (Exception e) {
-                return "https://html.duckduckgo.com/html?q=" + url;
+                return "https://lite.duckduckgo.com/lite/?q=" + url;
             }
         }
         if (!url.contains("://")) {
@@ -461,10 +461,10 @@ public class MainActivity extends AppCompatActivity {
         if (!query.isEmpty()) {
             homeSearchInput.setText("");
             try {
-                String searchUrl = "https://html.duckduckgo.com/html?q=" + java.net.URLEncoder.encode(query, "UTF-8");
+                String searchUrl = "https://lite.duckduckgo.com/lite/?q=" + java.net.URLEncoder.encode(query, "UTF-8");
                 loadUrl(searchUrl, true);
             } catch (Exception e) {
-                loadUrl("https://html.duckduckgo.com/html?q=" + query, true);
+                loadUrl("https://lite.duckduckgo.com/lite/?q=" + query, true);
             }
         }
     }
