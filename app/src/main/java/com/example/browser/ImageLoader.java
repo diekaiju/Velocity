@@ -57,6 +57,12 @@ public class ImageLoader {
         return instance;
     }
 
+    public long getDiskCacheSize(String url) {
+        if (url == null || url.trim().isEmpty() || url.startsWith("data:")) return 0;
+        File file = getDiskCacheFile(url);
+        return (file != null && file.exists()) ? file.length() : 0;
+    }
+
     public Future<?> load(String url, int targetWidth, int targetHeight, ImageLoadCallback callback) {
         // Handle memory cache hit
         Bitmap cached = memoryCache.get(url);

@@ -360,9 +360,6 @@ public final class HtmlCleaner {
     }
 
     private static void simplifySemanticElements(Document document) {
-        renameAndPrepend(document, "header", "div", "[HEADER]");
-        renameAndPrepend(document, "footer", "div", "[FOOTER]");
-        renameAndPrepend(document, "nav", "div", "[NAV]");
         renameAndPrepend(document, "aside", "div", "[SIDEBAR]");
         renameAndPrepend(document, "main", "div", "[CONTENT]");
         document.select("section, article, figure").tagName("div");

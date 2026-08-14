@@ -1,101 +1,18 @@
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:fitsSystemWindows="true"
     android:background="?attr/colorSurface">
 
-    <!-- Top Bar / Modern Search Bar Container -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingLeft="12dp"
-        android:paddingRight="12dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp"
-        android:background="?attr/colorSurface"
-        android:gravity="center_vertical">
 
-        <!-- Modern Rounded Address Bar -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:orientation="horizontal"
-            android:background="@drawable/address_bar_bg"
-            android:gravity="center_vertical"
-            android:paddingLeft="12dp"
-            android:paddingRight="8dp">
-
-            <!-- Search Icon -->
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:src="@android:drawable/ic_menu_search"
-                android:tint="?attr/colorOnSurfaceVariant"
-                android:contentDescription="Search Icon" />
-
-            <!-- Input Field -->
-            <EditText
-                android:id="@+id/urlInput"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:layout_marginLeft="8dp"
-                android:layout_marginRight="8dp"
-                android:hint="Search or type URL"
-                android:background="@null"
-                android:singleLine="true"
-                android:imeOptions="actionGo"
-                android:textSize="15sp"
-                android:textColor="?attr/colorOnSurface"
-                android:textColorHint="?attr/colorOnSurfaceVariant"/>
-
-            <!-- Go / Navigation Button -->
-            <ImageButton
-                android:id="@+id/btnGo"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:src="@android:drawable/ic_menu_send"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:tint="?attr/colorOnSurface"
-                android:contentDescription="Go" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <ProgressBar
-        android:id="@+id/progressBar"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent"
-        android:layout_height="4dp"
-        android:visibility="gone"
-        android:progressTint="?attr/colorPrimary"/>
-
-    <!-- Tab Bar -->
-    <HorizontalScrollView
-        android:layout_width="match_parent"
-        android:layout_height="44dp"
-        android:background="?attr/colorSurfaceContainer"
-        android:scrollbars="none">
-        
-        <LinearLayout
-            android:id="@+id/tabContainer"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"/>
-    </HorizontalScrollView>
 
     <!-- Reading Hub Home Page Container -->
     <ScrollView
         android:id="@+id/homePageContainer"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="match_parent"
+        android:layout_below="@id/topHeaderContainer"
+        android:layout_above="@id/bottomBarContainer"
         android:background="?attr/colorSurface"
         android:visibility="visible">
 
@@ -270,9 +187,11 @@
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scrollView"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:padding="12dp"
+        android:layout_height="match_parent"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentBottom="true"
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp"
         android:background="#FFFFFF"
         android:visibility="gone">
 
@@ -295,10 +214,105 @@
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- Material 3 Bottom Action Controls -->
+    <!-- Header Container (Top Bar + Progress Bar + Tab Bar) -->
     <LinearLayout
+        android:id="@+id/topHeaderContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:orientation="vertical">
+
+        <!-- Top Bar / Modern Search Bar Container -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingLeft="12dp"
+            android:paddingRight="12dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:background="?attr/colorSurface"
+            android:gravity="center_vertical">
+
+            <!-- Modern Rounded Address Bar -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:background="@drawable/address_bar_bg"
+                android:gravity="center_vertical"
+                android:paddingLeft="12dp"
+                android:paddingRight="8dp">
+
+                <!-- Search Icon -->
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@android:drawable/ic_menu_search"
+                    android:tint="?attr/colorOnSurfaceVariant"
+                    android:contentDescription="Search Icon" />
+
+                <!-- Input Field -->
+                <EditText
+                    android:id="@+id/urlInput"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:layout_marginLeft="8dp"
+                    android:layout_marginRight="8dp"
+                    android:hint="Search or type URL"
+                    android:background="@null"
+                    android:singleLine="true"
+                    android:imeOptions="actionGo"
+                    android:textSize="15sp"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textColorHint="?attr/colorOnSurfaceVariant"/>
+
+                <!-- Go / Navigation Button -->
+                <ImageButton
+                    android:id="@+id/btnGo"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@android:drawable/ic_menu_send"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:tint="?attr/colorOnSurface"
+                    android:contentDescription="Go" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:visibility="gone"
+            android:progressTint="?attr/colorPrimary"/>
+
+        <!-- Tab Bar -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:background="?attr/colorSurfaceContainer"
+            android:scrollbars="none">
+            
+            <LinearLayout
+                android:id="@+id/tabContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"/>
+        </HorizontalScrollView>
+    </LinearLayout>
+
+    <!-- Material 3 Bottom Action Controls -->
+    <LinearLayout
+        android:id="@+id/bottomBarContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
         android:orientation="horizontal"
         android:background="?attr/colorSurfaceVariant"
         android:padding="4dp"
@@ -364,4 +378,4 @@
             android:tint="?attr/colorPrimary"
             android:contentDescription="More Options" />
     </LinearLayout>
-</LinearLayout>
+</RelativeLayout>

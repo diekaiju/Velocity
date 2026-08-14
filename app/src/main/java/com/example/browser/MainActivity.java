@@ -61,6 +61,10 @@ public class MainActivity extends AppCompatActivity {
         com.example.browser.reconstruction.LayoutNode rootLayout;
 
         List<Integer> historyScrollY = new ArrayList<>();
+        List<com.example.browser.reconstruction.LayoutNode> historyLayouts = new ArrayList<>();
+        List<Spanned> historyContents = new ArrayList<>();
+        List<String> historyTitles = new ArrayList<>();
+        List<java.util.Map<String, Integer>> historyAnchorMaps = new ArrayList<>();
 
         Tab(String url) {
             addHistory(url);
@@ -81,11 +85,43 @@ public class MainActivity extends AppCompatActivity {
             if (historyIndex < history.size() - 1) {
                 history = new ArrayList<>(history.subList(0, historyIndex + 1));
                 historyScrollY = new ArrayList<>(historyScrollY.subList(0, historyIndex + 1));
+                historyLayouts = new ArrayList<>(historyLayouts.subList(0, historyIndex + 1));
+                historyContents = new ArrayList<>(historyContents.subList(0, historyIndex + 1));
+                historyTitles = new ArrayList<>(historyTitles.subList(0, historyIndex + 1));
+                historyAnchorMaps = new ArrayList<>(historyAnchorMaps.subList(0, historyIndex + 1));
             }
             history.add(url);
             historyScrollY.add(0);
+            historyLayouts.add(null);
+            historyContents.add(null);
+            historyTitles.add("Untitled Page");
+            historyAnchorMaps.add(new java.util.HashMap<>());
             historyIndex++;
             currentUrl = url;
+            restoreCurrentState();
+        }
+
+        void saveCurrentState(com.example.browser.reconstruction.LayoutNode root, Spanned content, String title, java.util.Map<String, Integer> anchors) {
+            if (historyIndex >= 0 && historyIndex < history.size()) {
+                historyLayouts.set(historyIndex, root);
+                historyContents.set(historyIndex, content);
+                historyTitles.set(historyIndex, title);
+                historyAnchorMaps.set(historyIndex, anchors);
+            }
+            this.rootLayout = root;
+            this.pageContent = content;
+            this.pageTitle = title;
+            this.anchorMap = anchors;
+        }
+
+        void restoreCurrentState() {
+            if (historyIndex >= 0 && historyIndex < history.size()) {
+                this.rootLayout = historyLayouts.get(historyIndex);
+                this.pageContent = historyContents.get(historyIndex);
+                this.pageTitle = historyTitles.get(historyIndex);
+                this.anchorMap = historyAnchorMaps.get(historyIndex);
+                this.currentUrl = history.get(historyIndex);
+            }
         }
 
         void saveCurrentScrollY(int scrollY) {
@@ -112,14 +148,14 @@ public class MainActivity extends AppCompatActivity {
         void goBack() {
             if (canGoBack()) {
                 historyIndex--;
-                currentUrl = history.get(historyIndex);
+                restoreCurrentState();
             }
         }
 
         void goForward() {
             if (canGoForward()) {
                 historyIndex++;
-                currentUrl = history.get(historyIndex);
+                restoreCurrentState();
             }
         }
     }
@@ -181,9 +217,9 @@ public class MainActivity extends AppCompatActivity {
     public String processUrl(String url) {
         if (!url.contains(".")) {
             try {
-                return "https://lite.duckduckgo.com/lite/?q=" + java.net.URLEncoder.encode(url, "UTF-8");
+                return "https://html.duckduckgo.com/html/?q=" + java.net.URLEncoder.encode(url, "UTF-8");
             } catch (Exception e) {
-                return "https://lite.duckduckgo.com/lite/?q=" + url;
+                return "https://html.duckduckgo.com/html/?q=" + url;
             }
         }
         if (!url.contains("://")) {
@@ -218,6 +254,9 @@ public class MainActivity extends AppCompatActivity {
     private ImageButton btnMore;
     private String currentRawHtml = "";
     private com.example.browser.reconstruction.ReaderTheme currentReaderTheme = com.example.browser.reconstruction.ReaderTheme.LIGHT;
+    private View topHeaderContainer;
+    private View bottomBarContainer;
+    private boolean isBarsVisible = true;
     private android.speech.tts.TextToSpeech textToSpeech;
     private boolean isSpeaking = false;
 
@@ -245,6 +284,38 @@ public class MainActivity extends AppCompatActivity {
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
+                    Tab tab = tabList.get(currentTabIdx);
+                    if (tab.canGoBack()) {
+                        if (tab.currentUrl != null && !tab.currentUrl.equals("home")) {
+                            tab.saveCurrentScrollY(scrollView.getScrollY());
+                        }
+                        tab.goBack();
+                        if (tab.currentUrl.equals("home")) {
+                            switchToTab(currentTabIdx);
+                        } else {
+                            if (tab.rootLayout != null || tab.pageContent != null) {
+                                urlInput.setText(tab.currentUrl);
+                                renderNativeTree(tab);
+                                final int savedY = getUrlScrollPosition(tab.currentUrl);
+                                scrollView.post(() -> scrollView.scrollTo(0, savedY));
+                                updateButtons();
+                            } else {
+                                loadUrl(tab.currentUrl, false);
+                            }
+                        }
+                        return;
+                    }
+                }
+                setEnabled(false);
+                onBackPressed();
+                setEnabled(true);
+            }
+        });
 
         // Initialize TTS
         textToSpeech = new android.speech.tts.TextToSpeech(this, status -> {
@@ -287,7 +358,42 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // Initialize UI
+        topHeaderContainer = findViewById(R.id.topHeaderContainer);
+        bottomBarContainer = findViewById(R.id.bottomBarContainer);
+
+        // Load saved reader theme
+        String savedTheme = getSharedPreferences("reader_prefs", MODE_PRIVATE).getString("selected_theme", com.example.browser.reconstruction.ReaderTheme.LIGHT.name());
+        try {
+            currentReaderTheme = com.example.browser.reconstruction.ReaderTheme.valueOf(savedTheme);
+        } catch (Exception e) {
+            currentReaderTheme = com.example.browser.reconstruction.ReaderTheme.LIGHT;
+        }
+
         scrollView = findViewById(R.id.scrollView);
+        if (scrollView instanceof androidx.core.widget.NestedScrollView) {
+            ((androidx.core.widget.NestedScrollView) scrollView).setOnScrollChangeListener(
+                (androidx.core.widget.NestedScrollView.OnScrollChangeListener) (v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
+                    int dy = scrollY - oldScrollY;
+                    if (dy > 15 && isBarsVisible) {
+                        hideNavigationBars();
+                    } else if (dy < -15 && !isBarsVisible) {
+                        showNavigationBars();
+                    }
+                    if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
+                        Tab tab = tabList.get(currentTabIdx);
+                        tab.saveCurrentScrollY(scrollY);
+                        saveUrlScrollPosition(tab.currentUrl, scrollY);
+                    }
+                }
+            );
+            scrollView.post(() -> {
+                int topHeight = topHeaderContainer != null ? topHeaderContainer.getHeight() : 0;
+                int bottomHeight = bottomBarContainer != null ? bottomBarContainer.getHeight() : 0;
+                scrollView.setPadding(scrollView.getPaddingLeft(), topHeight, scrollView.getPaddingRight(), bottomHeight);
+                ((androidx.core.widget.NestedScrollView) scrollView).setClipToPadding(false);
+            });
+        }
+
         homePageContainer = findViewById(R.id.homePageContainer);
         homeSearchInput = findViewById(R.id.homeSearchInput);
         btnHomeSearchGo = findViewById(R.id.btnHomeSearchGo);
@@ -389,8 +495,8 @@ public class MainActivity extends AppCompatActivity {
         android.widget.Button btnHomeHistory = findViewById(R.id.btnHomeHistory);
 
         if (btnCategoryWiki != null) btnCategoryWiki.setOnClickListener(v -> loadUrl("https://en.wikipedia.org/wiki/Special:Random", true));
-        if (btnCategoryNews != null) btnCategoryNews.setOnClickListener(v -> loadUrl("https://news.google.com/", true));
-        if (btnCategoryTech != null) btnCategoryTech.setOnClickListener(v -> loadUrl("https://arstechnica.com/", true));
+        if (btnCategoryNews != null) btnCategoryNews.setOnClickListener(v -> loadUrl("https://lite.cnn.com", true));
+        if (btnCategoryTech != null) btnCategoryTech.setOnClickListener(v -> loadUrl("https://news.ycombinator.com/", true));
         if (btnCategoryBooks != null) btnCategoryBooks.setOnClickListener(v -> loadUrl("https://gutenberg.org/", true));
 
         if (btnHomeBookmarks != null) btnHomeBookmarks.setOnClickListener(v -> showBookmarksSheet());
@@ -401,11 +507,22 @@ public class MainActivity extends AppCompatActivity {
                 if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
                     Tab tab = tabList.get(currentTabIdx);
                     if (tab.canGoBack()) {
+                        if (tab.currentUrl != null && !tab.currentUrl.equals("home")) {
+                            tab.saveCurrentScrollY(scrollView.getScrollY());
+                        }
                         tab.goBack();
                         if (tab.currentUrl.equals("home")) {
                             switchToTab(currentTabIdx);
                         } else {
-                            loadUrl(tab.currentUrl, false);
+                            if (tab.rootLayout != null || tab.pageContent != null) {
+                                urlInput.setText(tab.currentUrl);
+                                renderNativeTree(tab);
+                                final int savedY = getUrlScrollPosition(tab.currentUrl);
+                                scrollView.post(() -> scrollView.scrollTo(0, savedY));
+                                updateButtons();
+                            } else {
+                                loadUrl(tab.currentUrl, false);
+                            }
                         }
                     }
                 }
@@ -417,11 +534,22 @@ public class MainActivity extends AppCompatActivity {
                 if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
                     Tab tab = tabList.get(currentTabIdx);
                     if (tab.canGoForward()) {
+                        if (tab.currentUrl != null && !tab.currentUrl.equals("home")) {
+                            tab.saveCurrentScrollY(scrollView.getScrollY());
+                        }
                         tab.goForward();
                         if (tab.currentUrl.equals("home")) {
                             switchToTab(currentTabIdx);
                         } else {
-                            loadUrl(tab.currentUrl, false);
+                            if (tab.rootLayout != null || tab.pageContent != null) {
+                                urlInput.setText(tab.currentUrl);
+                                renderNativeTree(tab);
+                                final int savedY = getUrlScrollPosition(tab.currentUrl);
+                                scrollView.post(() -> scrollView.scrollTo(0, savedY));
+                                updateButtons();
+                            } else {
+                                loadUrl(tab.currentUrl, false);
+                            }
                         }
                     }
                 }
@@ -460,12 +588,9 @@ public class MainActivity extends AppCompatActivity {
         String query = homeSearchInput.getText().toString().trim();
         if (!query.isEmpty()) {
             homeSearchInput.setText("");
-            try {
-                String searchUrl = "https://lite.duckduckgo.com/lite/?q=" + java.net.URLEncoder.encode(query, "UTF-8");
-                loadUrl(searchUrl, true);
-            } catch (Exception e) {
-                loadUrl("https://lite.duckduckgo.com/lite/?q=" + query, true);
-            }
+            Intent intent = new Intent(MainActivity.this, DuckDuckGoSearchActivity.class);
+            intent.putExtra("QUERY", query);
+            startActivity(intent);
         }
     }
 
@@ -490,7 +615,46 @@ public class MainActivity extends AppCompatActivity {
         switchToTab(nextSelection);
     }
 
+    private void hideNavigationBars() {
+        if (!isBarsVisible) return;
+        isBarsVisible = false;
+        if (topHeaderContainer != null) {
+            topHeaderContainer.animate()
+                    .translationY(-topHeaderContainer.getHeight())
+                    .setDuration(220)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                    .start();
+        }
+        if (bottomBarContainer != null) {
+            bottomBarContainer.animate()
+                    .translationY(bottomBarContainer.getHeight())
+                    .setDuration(220)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                    .start();
+        }
+    }
+
+    private void showNavigationBars() {
+        if (isBarsVisible) return;
+        isBarsVisible = true;
+        if (topHeaderContainer != null) {
+            topHeaderContainer.animate()
+                    .translationY(0)
+                    .setDuration(220)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                    .start();
+        }
+        if (bottomBarContainer != null) {
+            bottomBarContainer.animate()
+                    .translationY(0)
+                    .setDuration(220)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                    .start();
+        }
+    }
+
     private void switchToTab(int position) {
+        showNavigationBars();
         if (position >= 0 && position < tabList.size()) {
             currentTabIdx = position;
             Tab tab = tabList.get(position);
@@ -504,6 +668,8 @@ public class MainActivity extends AppCompatActivity {
                 homePageContainer.setVisibility(View.GONE);
                 scrollView.setVisibility(View.VISIBLE);
                 renderNativeTree(tab);
+                final int savedY = getUrlScrollPosition(tab.currentUrl);
+                scrollView.post(() -> scrollView.scrollTo(0, savedY));
             }
             
             updateButtons();
@@ -529,11 +695,30 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private boolean isUrl(String input) {
+        if (input == null || input.isEmpty()) return false;
+        if (input.contains(" ")) return false;
+        if (input.startsWith("http://") || input.startsWith("https://") || input.startsWith("file://") || input.startsWith("about:")) return true;
+        if (input.contains(".")) {
+            String[] parts = input.split("\\.");
+            if (parts.length >= 2 && !parts[parts.length - 1].isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void handleUrlInput() {
         String input = urlInput.getText().toString().trim();
         if (!input.isEmpty()) {
-            String processedUrl = processUrl(input);
-            loadUrl(processedUrl, true);
+            if (isUrl(input)) {
+                String processedUrl = processUrl(input);
+                loadUrl(processedUrl, true);
+            } else {
+                Intent intent = new Intent(MainActivity.this, DuckDuckGoSearchActivity.class);
+                intent.putExtra("QUERY", input);
+                startActivity(intent);
+            }
         }
     }
 
@@ -711,21 +896,15 @@ public class MainActivity extends AppCompatActivity {
 
                 // Reconstruct the page using the WebsiteReconstructionEngine
                 WebsiteReconstructionEngine.ReconstructedPage reconstructedPage = WebsiteReconstructionEngine.reconstruct(cleanedHtml, config.baseUrl);
-                tab.rootLayout = reconstructedPage.rootLayout;
-                tab.anchorMap = reconstructedPage.anchorMap;
-                tab.pageTitle = finalPageTitle;
+                tab.saveCurrentState(reconstructedPage.rootLayout, null, finalPageTitle, reconstructedPage.anchorMap);
 
                 HistoryManager.addHistory(MainActivity.this, finalPageTitle, config.baseUrl);
 
                 if (tabList.indexOf(tab) == currentTabIdx) {
                     renderNativeTree(tab);
 
-                    if (addToHistory) {
-                        scrollView.post(() -> scrollView.scrollTo(0, 0));
-                    } else {
-                        final int savedY = tab.getCurrentScrollY();
-                        scrollView.post(() -> scrollView.scrollTo(0, savedY));
-                    }
+                    final int savedY = getUrlScrollPosition(tab.currentUrl);
+                    scrollView.post(() -> scrollView.scrollTo(0, savedY));
 
                     // Update tab text UI
                     android.widget.TextView tv = (android.widget.TextView) tabContainer.getChildAt(currentTabIdx);
@@ -863,6 +1042,7 @@ public class MainActivity extends AppCompatActivity {
 
             themeOption.setOnClickListener(v -> {
                 currentReaderTheme = t;
+                getSharedPreferences("reader_prefs", MODE_PRIVATE).edit().putString("selected_theme", t.name()).apply();
                 dialog.dismiss();
                 if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
                     renderNativeTree(tabList.get(currentTabIdx));
@@ -1064,13 +1244,11 @@ public class MainActivity extends AppCompatActivity {
         if (currentTabIdx < 0 || currentTabIdx >= tabList.size()) return;
         Tab tab = tabList.get(currentTabIdx);
         tab.currentUrl = url;
-        tab.pageTitle = pageTitle;
 
         executor.execute(() -> {
             com.example.browser.reconstruction.WebsiteReconstructionEngine.ReconstructedPage reconstructed =
                     com.example.browser.reconstruction.WebsiteReconstructionEngine.reconstruct(html, url);
-            tab.rootLayout = reconstructed.rootLayout;
-            tab.anchorMap = reconstructed.anchorMap;
+            tab.saveCurrentState(reconstructed.rootLayout, null, pageTitle, reconstructed.anchorMap);
 
             runOnUiThread(() -> {
                 renderNativeTree(tab);
@@ -1341,10 +1519,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void handleIntent(Intent intent) {
+        if (intent == null) return;
         String action = intent.getAction();
         String data = intent.getDataString();
+        String targetUrl = intent.getStringExtra("TARGET_URL");
 
-        if (Intent.ACTION_VIEW.equals(action) && data != null) {
+        if (targetUrl != null && !targetUrl.isEmpty()) {
+            if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
+                loadUrl(targetUrl, true);
+            } else {
+                createNewTab(targetUrl);
+            }
+        } else if (Intent.ACTION_VIEW.equals(action) && data != null) {
             createNewTab(data);
         } else if (tabList.isEmpty()) {
             createNewTab("home");
@@ -1354,22 +1540,51 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
-                Tab tab = tabList.get(currentTabIdx);
-                if (tab.canGoBack()) {
-                    tab.goBack();
-                    if (tab.currentUrl.equals("home")) {
-                        switchToTab(currentTabIdx);
-                    } else {
-                        loadUrl(tab.currentUrl, false);
-                    }
-                    return true;
-                }
-            }
-            finish();
+            onBackPressed();
             return true;
         }
         return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
+            Tab tab = tabList.get(currentTabIdx);
+            if (tab.canGoBack()) {
+                if (tab.currentUrl != null && !tab.currentUrl.equals("home")) {
+                    tab.saveCurrentScrollY(scrollView.getScrollY());
+                }
+                tab.goBack();
+                if (tab.currentUrl.equals("home")) {
+                    switchToTab(currentTabIdx);
+                } else {
+                    if (tab.rootLayout != null || tab.pageContent != null) {
+                        urlInput.setText(tab.currentUrl);
+                        renderNativeTree(tab);
+                        final int savedY = getUrlScrollPosition(tab.currentUrl);
+                        scrollView.post(() -> scrollView.scrollTo(0, savedY));
+                        updateButtons();
+                    } else {
+                        loadUrl(tab.currentUrl, false);
+                    }
+                }
+                return;
+            }
+        }
+        super.onBackPressed();
+    }
+
+    private void saveUrlScrollPosition(String url, int scrollY) {
+        if (url == null || url.trim().isEmpty() || url.equals("home") || url.equals("about:blank")) return;
+        getSharedPreferences("scroll_history", MODE_PRIVATE)
+            .edit()
+            .putInt(url, scrollY)
+            .apply();
+    }
+
+    private int getUrlScrollPosition(String url) {
+        if (url == null || url.trim().isEmpty() || url.equals("home") || url.equals("about:blank")) return 0;
+        return getSharedPreferences("scroll_history", MODE_PRIVATE).getInt(url, 0);
     }
 
     @Override

@@ -278,16 +278,53 @@ public final class NativeLayoutRenderer {
             return theme.textColor;
         }
 
+        private int resolveAttr(String name, int defaultColor) {
+            int id = context.getResources().getIdentifier(name, "attr", context.getPackageName());
+            if (id == 0) {
+                id = context.getResources().getIdentifier(name, "attr", "com.example.browser");
+            }
+            if (id == 0) {
+                id = context.getResources().getIdentifier(name, "attr", "androidx.appcompat");
+            }
+            if (id == 0) {
+                id = context.getResources().getIdentifier(name, "attr", "com.google.android.material");
+            }
+            if (id == 0) {
+                id = context.getResources().getIdentifier(name, "attr", "android");
+            }
+
+            if (id != 0) {
+                return resolveDynamicColor(context, id, defaultColor);
+            }
+            return defaultColor;
+        }
+
         int getLinkColor() {
-            return theme.linkColor;
+            return resolveAttr("colorPrimary", theme.linkColor);
         }
 
         int getCardBackgroundColor() {
-            return theme.cardBackgroundColor;
+            return resolveAttr("colorSurfaceContainer", theme.cardBackgroundColor);
         }
 
         int getBorderColor() {
-            return theme.borderColor;
+            return resolveAttr("colorOutline", theme.borderColor);
+        }
+
+        int getCodeBackgroundColor() {
+            return resolveAttr("colorSecondaryContainer", theme.codeBackgroundColor);
+        }
+
+        int getAccentBarColor() {
+            return resolveAttr("colorPrimary", theme.accentBarColor);
+        }
+
+        int getButtonBackgroundColor() {
+            return resolveAttr("colorPrimary", theme.buttonBackgroundColor);
+        }
+
+        int getButtonTextColor() {
+            return resolveAttr("colorOnPrimary", theme.buttonTextColor);
         }
     }
 
@@ -421,6 +458,15 @@ public final class NativeLayoutRenderer {
                 break;
             case "figure":
                 v = renderFigure(state, parent, node, depth);
+                break;
+            case "header":
+                v = renderHeader(state, parent, node, depth);
+                break;
+            case "nav":
+                v = renderNav(state, parent, node, depth);
+                break;
+            case "footer":
+                v = renderFooter(state, parent, node, depth);
                 break;
             default:
                 if (isTextLike(node)) {
@@ -594,6 +640,7 @@ public final class NativeLayoutRenderer {
 
         tv.setText(
                 buildStyledText(
+                        state,
                         node,
                         text
                 )
@@ -669,6 +716,7 @@ public final class NativeLayoutRenderer {
     }
 
     private static SpannableStringBuilder buildStyledText(
+            RendererState state,
             LayoutNode node,
             String text
     ) {
@@ -726,7 +774,25 @@ public final class NativeLayoutRenderer {
                     parseColorSafe(color);
 
             if (parsed != null) {
+                boolean isLink = false;
+                org.jsoup.nodes.Element temp = node.element;
+                while (temp != null) {
+                    if ("a".equalsIgnoreCase(temp.tagName())) {
+                        isLink = true;
+                        break;
+                    }
+                    temp = temp.parent();
+                }
 
+                if (isLink) {
+                    parsed = state.getLinkColor();
+                } else {
+                    boolean bgIsDark = isDarkColor(state.getBackgroundColor());
+                    boolean colorIsDark = isDarkColor(parsed);
+                    if ((bgIsDark && colorIsDark) || (!bgIsDark && !colorIsDark)) {
+                        parsed = state.getTextColor();
+                    }
+                }
                 builder.setSpan(
                         new ForegroundColorSpan(parsed),
                         0,
@@ -758,14 +824,30 @@ public final class NativeLayoutRenderer {
                         css(node, "color")
                 );
 
-        if (color != null && isDarkColor(state.getBackgroundColor()) && isDarkColor(color)) {
-            color = state.getTextColor();
+        boolean isLink = false;
+        org.jsoup.nodes.Element temp = node.element;
+        while (temp != null) {
+            if ("a".equalsIgnoreCase(temp.tagName())) {
+                isLink = true;
+                break;
+            }
+            temp = temp.parent();
+        }
+
+        if (isLink) {
+            color = state.getLinkColor();
+        } else if (color != null) {
+            boolean bgIsDark = isDarkColor(state.getBackgroundColor());
+            boolean colorIsDark = isDarkColor(color);
+            if ((bgIsDark && colorIsDark) || (!bgIsDark && !colorIsDark)) {
+                color = state.getTextColor();
+            }
         }
 
         tv.setTextColor(
                 color != null
                         ? color
-                        : state.getTextColor()
+                        : (isLink ? state.getLinkColor() : state.getTextColor())
         );
 
         // --------------------------------------------------------
@@ -958,21 +1040,57 @@ public final class NativeLayoutRenderer {
             }
         }
 
-        ImageView image = new ImageView(state.context);
-        image.setAdjustViewBounds(true);
-        image.setMinimumHeight(dpToPx(state.context, 100));
-        image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        boolean isInsideTable = false;
+        String linkHref = null;
+        org.jsoup.nodes.Element curr = node.element.parent();
+        while (curr != null) {
+            String cTag = curr.tagName().toLowerCase(Locale.ROOT);
+            if ("table".equalsIgnoreCase(cTag)) {
+                isInsideTable = true;
+            }
+            if ("a".equalsIgnoreCase(cTag)) {
+                linkHref = curr.attr("href");
+            }
+            curr = curr.parent();
+        }
 
-        int reqWidth = node.width > 0 ? dpToPx(state.context, node.width) : dpToPx(state.context, 600);
-        int reqHeight = node.height > 0 ? dpToPx(state.context, node.height) : dpToPx(state.context, 400);
+        int screenWidth = state.context.getResources().getDisplayMetrics().widthPixels;
+        int maxImgWidth = screenWidth - dpToPx(state.context, 32);
 
+        FrameLayout container = new FrameLayout(state.context);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
         );
-
         applyMargins(params, node);
-        image.setLayoutParams(params);
+        container.setLayoutParams(params);
+
+        int maxTableImgWidth = dpToPx(state.context, 120);
+        int maxTableImgHeight = dpToPx(state.context, 100);
+
+        ImageView image = new ImageView(state.context);
+        image.setAdjustViewBounds(true);
+        image.setMinimumHeight(isInsideTable ? dpToPx(state.context, 30) : dpToPx(state.context, 100));
+        image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        image.setMaxWidth(maxImgWidth);
+        
+        int layoutWidth = ViewGroup.LayoutParams.WRAP_CONTENT;
+        int layoutHeight = ViewGroup.LayoutParams.WRAP_CONTENT;
+        
+        if (node.width > 0) {
+            int pxWidth = dpToPx(state.context, node.width);
+            layoutWidth = pxWidth > maxImgWidth ? maxImgWidth : pxWidth;
+        }
+        
+        if (node.height > 0) {
+            layoutHeight = dpToPx(state.context, node.height);
+        }
+
+        FrameLayout.LayoutParams imgParams = new FrameLayout.LayoutParams(
+                isInsideTable ? maxTableImgWidth : layoutWidth,
+                layoutHeight
+        );
+        image.setLayoutParams(imgParams);
 
         GradientDrawable background = createBackground(node, Color.TRANSPARENT);
         if (background != null) {
@@ -980,8 +1098,46 @@ public final class NativeLayoutRenderer {
             image.setClipToOutline(true);
         }
 
-        parent.addView(image);
+        container.addView(image);
+        parent.addView(container);
 
+        final String finalCleanUrl = cleanUrl;
+        if (linkHref != null && !linkHref.trim().isEmpty()) {
+            final String finalLink = linkHref.trim();
+            
+            // Frame container as an interactive outline button
+            GradientDrawable border = new GradientDrawable();
+            border.setColor(Color.TRANSPARENT);
+            border.setStroke(dpToPx(state.context, 2), state.getLinkColor());
+            border.setCornerRadius(dpToPx(state.context, 8));
+            container.setBackground(border);
+            int padding = dpToPx(state.context, 4);
+            container.setPadding(padding, padding, padding, padding);
+
+            container.setOnClickListener(v -> handleLink(state, finalLink));
+            container.setFocusable(true);
+            container.setClickable(true);
+            
+            image.setOnClickListener(v -> handleLink(state, finalLink));
+            image.setFocusable(true);
+            image.setClickable(true);
+        }
+
+        int reqWidth = node.width > 0 ? dpToPx(state.context, node.width) : (isInsideTable ? maxTableImgWidth : maxImgWidth);
+        int reqHeight = node.height > 0 ? dpToPx(state.context, node.height) : (isInsideTable ? maxTableImgHeight : dpToPx(state.context, 800));
+
+        image.setOnLongClickListener(v -> {
+            try {
+                android.content.Intent intent = new android.content.Intent(state.context, com.example.browser.ImageViewerActivity.class);
+                intent.putExtra("image_url", finalCleanUrl);
+                state.context.startActivity(intent);
+            } catch (Exception e) {
+                android.widget.Toast.makeText(state.context, "Failed to open image viewer: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show();
+            }
+            return true;
+        });
+
+        final String finalLinkHref = linkHref;
         ImageLoader.getInstance(state.context).load(
                 cleanUrl,
                 reqWidth,
@@ -990,9 +1146,57 @@ public final class NativeLayoutRenderer {
 
                     @Override
                     public void onImageLoaded(android.graphics.Bitmap bitmap) {
+                        if (bitmap != null) {
+                            bitmap.setDensity(android.util.DisplayMetrics.DENSITY_DEFAULT);
+                        }
                         image.post(() -> {
                             image.setImageBitmap(bitmap);
                             image.requestLayout();
+
+                            if (bitmap != null) {
+                                long bytes = com.example.browser.ImageLoader.getInstance(state.context).getDiskCacheSize(finalCleanUrl);
+                                String sizeStr;
+                                if (bytes >= 1024 * 1024) {
+                                    sizeStr = String.format(Locale.ROOT, "%.1f MB", bytes / (1024.0 * 1024.0));
+                                } else if (bytes >= 1024) {
+                                    sizeStr = (bytes / 1024) + " KB";
+                                } else if (bytes > 0) {
+                                    sizeStr = bytes + " B";
+                                } else {
+                                    sizeStr = "";
+                                }
+
+                                String info = (finalLinkHref != null ? "🔗 " : "") + bitmap.getWidth() + "×" + bitmap.getHeight() + " px"
+                                        + (sizeStr.isEmpty() ? "" : " • " + sizeStr);
+
+                                TextView infoBadge = new TextView(state.context);
+                                infoBadge.setText(info);
+                                if (finalLinkHref != null) {
+                                    infoBadge.setTextColor(state.getButtonTextColor());
+                                } else {
+                                    infoBadge.setTextColor(Color.WHITE);
+                                }
+                                infoBadge.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f);
+                                int pxPaddingH = dpToPx(state.context, 8);
+                                int pxPaddingV = dpToPx(state.context, 4);
+                                infoBadge.setPadding(pxPaddingH, pxPaddingV, pxPaddingH, pxPaddingV);
+
+                                GradientDrawable badgeBg = new GradientDrawable();
+                                badgeBg.setColor(finalLinkHref != null ? state.getLinkColor() : Color.argb(180, 20, 20, 20));
+                                badgeBg.setCornerRadius(dpToPx(state.context, 10));
+                                infoBadge.setBackground(badgeBg);
+
+                                FrameLayout.LayoutParams badgeParams = new FrameLayout.LayoutParams(
+                                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                                        ViewGroup.LayoutParams.WRAP_CONTENT
+                                  );
+                                badgeParams.gravity = Gravity.BOTTOM | Gravity.END;
+                                int margin = dpToPx(state.context, 8);
+                                badgeParams.setMargins(margin, margin, margin, margin);
+                                infoBadge.setLayoutParams(badgeParams);
+
+                                container.addView(infoBadge);
+                            }
                         });
                     }
 
@@ -1003,7 +1207,42 @@ public final class NativeLayoutRenderer {
                 }
         );
 
-        return image;
+        return container;
+    }
+
+    private static void showDownloadDialog(Context context, String imageUrl) {
+        new android.app.AlertDialog.Builder(context)
+                .setTitle("Download Image")
+                .setMessage("Do you want to download this image?")
+                .setPositiveButton("Download", (dialog, which) -> {
+                    try {
+                        android.app.DownloadManager.Request request = new android.app.DownloadManager.Request(android.net.Uri.parse(imageUrl));
+                        request.setAllowedNetworkTypes(android.app.DownloadManager.Request.NETWORK_WIFI | android.app.DownloadManager.Request.NETWORK_MOBILE);
+                        request.setTitle("Downloading Image");
+                        request.setDescription("Velocity Browser Image Download");
+                        request.setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+
+                        String filename = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
+                        if (filename.contains("?")) {
+                            filename = filename.substring(0, filename.indexOf("?"));
+                        }
+                        if (filename.isEmpty()) {
+                            filename = "image_" + System.currentTimeMillis() + ".jpg";
+                        }
+
+                        request.setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, filename);
+
+                        android.app.DownloadManager manager = (android.app.DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
+                        if (manager != null) {
+                            manager.enqueue(request);
+                            android.widget.Toast.makeText(context, "Download started...", android.widget.Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (Exception e) {
+                        android.widget.Toast.makeText(context, "Failed to download image: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private static int resolveImageWidth(
@@ -1110,51 +1349,74 @@ public final class NativeLayoutRenderer {
             LayoutNode node,
             int depth
     ) {
-        android.widget.TableLayout table = new android.widget.TableLayout(state.context);
-        table.setStretchAllColumns(true);
+        HorizontalScrollView scrollWrapper = new HorizontalScrollView(state.context);
+        scrollWrapper.setHorizontalScrollBarEnabled(true);
 
-        Integer parsedBorderColor = parseColorSafe(css(node, "border-color"));
-        int borderColor = (parsedBorderColor != null && !isDarkColor(parsedBorderColor)) ? parsedBorderColor : state.theme.borderColor;
-
-        GradientDrawable tableBg = new GradientDrawable();
-        tableBg.setColor(Color.TRANSPARENT);
-        tableBg.setStroke(dpToPx(state.context, 1), borderColor);
-        table.setBackground(tableBg);
-
-        LinearLayout.LayoutParams tableParams = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams wrapperParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
         );
-        tableParams.setMargins(0, dpToPx(state.context, 8), 0, dpToPx(state.context, 8));
-        table.setLayoutParams(tableParams);
+        wrapperParams.setMargins(0, dpToPx(state.context, 10), 0, dpToPx(state.context, 10));
+        scrollWrapper.setLayoutParams(wrapperParams);
 
-        parent.addView(table);
+        boolean bgIsDark = isDarkColor(state.getBackgroundColor());
+        int tableBorderColor = bgIsDark ? Color.rgb(80, 80, 80) : Color.rgb(220, 220, 220);
+        int tableHeaderBg = bgIsDark ? Color.rgb(35, 35, 35) : Color.rgb(240, 240, 240);
+        int tableAltBg = bgIsDark ? Color.rgb(22, 22, 22) : Color.rgb(248, 248, 248);
+
+        GradientDrawable wrapperBg = new GradientDrawable();
+        wrapperBg.setColor(state.getBackgroundColor());
+        wrapperBg.setStroke(dpToPx(state.context, 1), tableBorderColor);
+        wrapperBg.setCornerRadius(dpToPx(state.context, 8));
+        scrollWrapper.setBackground(wrapperBg);
+
+        android.widget.TableLayout table = new android.widget.TableLayout(state.context);
+        table.setShrinkAllColumns(false);
 
         List<LayoutNode> rows = getTableRows(node);
+        int rowIndex = 0;
+
         for (LayoutNode rowNode : rows) {
             android.widget.TableRow rowView = new android.widget.TableRow(state.context);
             rowView.setLayoutParams(new android.widget.TableLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
             ));
 
             List<LayoutNode> cells = getRowCells(rowNode);
+            boolean isRowHeader = false;
+
             for (LayoutNode cellNode : cells) {
-                boolean isHeader = "th".equalsIgnoreCase(cellNode.element.tagName());
+                if ("th".equalsIgnoreCase(cellNode.element.tagName())) {
+                    isRowHeader = true;
+                    break;
+                }
+            }
+
+            int cellBgColor;
+            if (isRowHeader) {
+                cellBgColor = tableHeaderBg;
+            } else if (rowIndex % 2 == 1) {
+                cellBgColor = tableAltBg;
+            } else {
+                cellBgColor = state.getBackgroundColor();
+            }
+
+            for (LayoutNode cellNode : cells) {
+                boolean isCellHeader = "th".equalsIgnoreCase(cellNode.element.tagName()) || isRowHeader;
 
                 LinearLayout cellView = new LinearLayout(state.context);
                 cellView.setOrientation(LinearLayout.VERTICAL);
-                cellView.setPadding(dpToPx(state.context, 10), dpToPx(state.context, 8), dpToPx(state.context, 10), dpToPx(state.context, 8));
+                cellView.setPadding(dpToPx(state.context, 12), dpToPx(state.context, 10), dpToPx(state.context, 12), dpToPx(state.context, 10));
 
                 GradientDrawable cellBg = new GradientDrawable();
-                cellBg.setColor(isHeader ? state.theme.cardBackgroundColor : state.theme.backgroundColor);
-                cellBg.setStroke(dpToPx(state.context, 1), borderColor);
+                cellBg.setColor(isCellHeader ? tableHeaderBg : cellBgColor);
+                cellBg.setStroke(dpToPx(state.context, 1), tableBorderColor);
                 cellView.setBackground(cellBg);
 
                 android.widget.TableRow.LayoutParams cellParams = new android.widget.TableRow.LayoutParams(
-                        0,
                         ViewGroup.LayoutParams.WRAP_CONTENT,
-                        1f
+                        ViewGroup.LayoutParams.WRAP_CONTENT
                 );
                 int colSpan = getSpan(cellNode, "colspan", 1);
                 if (colSpan > 1) {
@@ -1163,15 +1425,19 @@ public final class NativeLayoutRenderer {
                 cellView.setLayoutParams(cellParams);
 
                 renderContainerChildren(state, cellView, cellNode, depth + 1);
-
-                applyTableStylesToChildren(state, cellView, isHeader);
+                applyTableStylesToChildren(state, cellView, isCellHeader);
 
                 rowView.addView(cellView);
             }
+
             table.addView(rowView);
+            rowIndex++;
         }
 
-        return table;
+        scrollWrapper.addView(table);
+        parent.addView(scrollWrapper);
+
+        return scrollWrapper;
     }
 
     private static int calculateColumnCount(
@@ -1408,6 +1674,8 @@ public final class NativeLayoutRenderer {
                             state.context
                     );
 
+            marker.setTextColor(state.getTextColor());
+
             marker.setText(
                     ordered
                             ? index + "."
@@ -1460,12 +1728,26 @@ public final class NativeLayoutRenderer {
                     )
             );
 
-            renderContainerChildren(
-                    state,
-                    content,
-                    child,
-                    depth + 1
-            );
+            if (child.children.isEmpty()) {
+                TextView tv = new TextView(state.context);
+                tv.setText(
+                        buildStyledText(
+                                state,
+                                child,
+                                extractReadableText(child)
+                        )
+                );
+                tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15);
+                tv.setTextColor(state.getTextColor());
+                content.addView(tv);
+            } else {
+                renderContainerChildren(
+                        state,
+                        content,
+                        child,
+                        depth + 1
+                );
+            }
 
             list.addView(item);
 
@@ -1513,6 +1795,10 @@ public final class NativeLayoutRenderer {
                 )
         );
 
+        boolean bgIsDark = isDarkColor(state.getBackgroundColor());
+        int defaultQuoteBg = bgIsDark ? Color.rgb(20, 20, 20) : Color.rgb(245, 245, 245);
+        int defaultQuoteBorder = bgIsDark ? Color.rgb(44, 44, 44) : Color.rgb(224, 224, 224);
+
         GradientDrawable background =
                 new GradientDrawable();
 
@@ -1522,11 +1808,7 @@ public final class NativeLayoutRenderer {
                                 node,
                                 "background-color"
                         ),
-                        Color.rgb(
-                                247,
-                                247,
-                                247
-                        )
+                        defaultQuoteBg
                 )
         );
 
@@ -1547,7 +1829,7 @@ public final class NativeLayoutRenderer {
                                 node,
                                 "border-color"
                         ),
-                        DEFAULT_BORDER_COLOR
+                        defaultQuoteBorder
                 )
         );
 
@@ -1744,6 +2026,7 @@ public final class NativeLayoutRenderer {
         button.setAllCaps(false);
 
         applyButtonStyle(
+                state,
                 button,
                 node
         );
@@ -1801,6 +2084,7 @@ public final class NativeLayoutRenderer {
                 box.setText(
                         node.element.attr("aria-label")
                 );
+                box.setTextColor(state.getTextColor());
 
                 box.setChecked(
                         node.element.hasAttr(
@@ -1825,6 +2109,7 @@ public final class NativeLayoutRenderer {
                                 "aria-label"
                         )
                 );
+                radio.setTextColor(state.getTextColor());
 
                 radio.setChecked(
                         node.element.hasAttr(
@@ -2251,6 +2536,140 @@ public final class NativeLayoutRenderer {
         );
 
         return figure;
+    }
+
+    // ------------------------------------------------------------
+    // Reconstructed Header, Nav, Footer Component Renderers
+    // ------------------------------------------------------------
+
+    private static View renderHeader(
+            RendererState state,
+            ViewGroup parent,
+            LayoutNode node,
+            int depth
+    ) {
+        LinearLayout box = new LinearLayout(state.context);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dpToPx(state.context, 16), dpToPx(state.context, 16), dpToPx(state.context, 16), dpToPx(state.context, 16));
+
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(state.getCardBackgroundColor());
+        bg.setCornerRadius(dpToPx(state.context, 12));
+        bg.setStroke(dpToPx(state.context, 1), state.getBorderColor());
+        box.setBackground(bg);
+
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        params.setMargins(0, 0, 0, dpToPx(state.context, 16));
+        box.setLayoutParams(params);
+
+        renderContainerChildren(state, box, node, depth + 1);
+        parent.addView(box);
+        return box;
+    }
+
+    private static View renderNav(
+            RendererState state,
+            ViewGroup parent,
+            LayoutNode node,
+            int depth
+    ) {
+        HorizontalScrollView scroll = new HorizontalScrollView(state.context);
+        scroll.setHorizontalScrollBarEnabled(false);
+
+        LinearLayout container = new LinearLayout(state.context);
+        container.setOrientation(LinearLayout.HORIZONTAL);
+        container.setPadding(dpToPx(state.context, 8), dpToPx(state.context, 8), dpToPx(state.context, 8), dpToPx(state.context, 8));
+
+        List<LayoutNode> flatLinks = new ArrayList<>();
+        findNavLinks(node, flatLinks);
+
+        for (LayoutNode linkNode : flatLinks) {
+            String linkText = extractReadableText(linkNode);
+            if (linkText.isEmpty()) continue;
+
+            TextView chip = new TextView(state.context);
+            chip.setText(linkText);
+            chip.setTextSize(13);
+            chip.setTextColor(state.getLinkColor());
+            chip.setPadding(dpToPx(state.context, 14), dpToPx(state.context, 8), dpToPx(state.context, 14), dpToPx(state.context, 8));
+
+            GradientDrawable chipBg = new GradientDrawable();
+            chipBg.setColor(state.getCardBackgroundColor());
+            chipBg.setCornerRadius(dpToPx(state.context, 16));
+            chipBg.setStroke(dpToPx(state.context, 1), state.getBorderColor());
+            chip.setBackground(chipBg);
+
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+            lp.setMargins(dpToPx(state.context, 4), 0, dpToPx(state.context, 4), 0);
+            chip.setLayoutParams(lp);
+
+            String href = linkNode.element.attr("href");
+            if (href != null && !href.isEmpty()) {
+                chip.setOnClickListener(v -> handleLink(state, href));
+            }
+
+            container.addView(chip);
+        }
+
+        if (container.getChildCount() == 0) {
+            return renderContainer(state, parent, node, depth);
+        }
+
+        scroll.addView(container);
+
+        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        scrollParams.setMargins(0, 0, 0, dpToPx(state.context, 16));
+        scroll.setLayoutParams(scrollParams);
+
+        parent.addView(scroll);
+        return scroll;
+    }
+
+    private static void findNavLinks(LayoutNode node, List<LayoutNode> flatLinks) {
+        if (node == null) return;
+        if ("a".equalsIgnoreCase(node.element.tagName())) {
+            flatLinks.add(node);
+            return;
+        }
+        for (LayoutNode child : node.children) {
+            findNavLinks(child, flatLinks);
+        }
+    }
+
+    private static View renderFooter(
+            RendererState state,
+            ViewGroup parent,
+            LayoutNode node,
+            int depth
+    ) {
+        LinearLayout box = new LinearLayout(state.context);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dpToPx(state.context, 16), dpToPx(state.context, 20), dpToPx(state.context, 16), dpToPx(state.context, 20));
+
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(state.getCardBackgroundColor());
+        bg.setCornerRadius(dpToPx(state.context, 12));
+        box.setBackground(bg);
+
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        params.setMargins(0, dpToPx(state.context, 24), 0, 0);
+        box.setLayoutParams(params);
+
+        renderContainerChildren(state, box, node, depth + 1);
+        parent.addView(box);
+        return box;
     }
 
     // ------------------------------------------------------------
@@ -2892,6 +3311,7 @@ public final class NativeLayoutRenderer {
     // ------------------------------------------------------------
 
     private static void applyButtonStyle(
+            RendererState state,
             Button button,
             LayoutNode node
     ) {
@@ -2905,38 +3325,22 @@ public final class NativeLayoutRenderer {
                 )
         );
 
-        int backgroundColor =
-                parseColorOrDefault(
-                        css(
-                                node,
-                                "background-color"
-                        ),
-                        Color.rgb(
-                                245,
-                                245,
-                                245
-                        )
-                );
-
-        GradientDrawable background =
-                new GradientDrawable();
-
-        background.setColor(
-                backgroundColor
+        int textColor = state.getButtonTextColor();
+        int backgroundColor = parseColorOrDefault(
+                css(
+                        node,
+                        "background-color"
+                ),
+                state.getButtonBackgroundColor()
         );
 
-        background.setCornerRadius(
-                dpToPx(
-                        node.element.ownerDocument() != null
-                                ? null
-                                : null,
-                        6
-                )
-        );
+        button.setTextColor(textColor);
 
-        button.setBackground(
-                background
-        );
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(backgroundColor);
+        background.setCornerRadius(dpToPx(state.context, 20));
+
+        button.setBackground(background);
     }
 
     // ------------------------------------------------------------
@@ -3266,6 +3670,9 @@ public final class NativeLayoutRenderer {
 
             case "background-color":
                 return node.style.backgroundColor;
+
+            case "color":
+                return node.style.color;
 
             case "margin-left":
                 return floatToCss(

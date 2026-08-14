@@ -87,6 +87,9 @@ public class WebsiteReconstructionEngine {
     private static void cleanDom(Document document) {
         // Strip scripts, CSS styles, canvas, svg
         document.select("script, style, iframe, canvas, svg, noscript, link[rel=stylesheet]").remove();
+        
+        // Strip sidebars, ads, social lists
+        document.select("aside, [id*=sidebar], [id*=ad], [class*=sidebar], [class*=ad], [class*=social]").remove();
     }
 
     private static LayoutNode buildLayoutTree(Element element) {
@@ -99,6 +102,25 @@ public class WebsiteReconstructionEngine {
         if (style.display.equals("block")) {
             if (tag.equals("span") || tag.equals("a") || tag.equals("strong") || tag.equals("b") || tag.equals("em") || tag.equals("i") || tag.equals("code")) {
                 style.display = "inline";
+            }
+        }
+
+        if (tag.equals("img") || tag.equals("image")) {
+            if (style.width <= 0 && element.hasAttr("width")) {
+                try {
+                    String wAttr = element.attr("width").replaceAll("[^0-9]", "");
+                    if (!wAttr.isEmpty()) {
+                        style.width = Integer.parseInt(wAttr);
+                    }
+                } catch (Exception ignored) {}
+            }
+            if (style.height <= 0 && element.hasAttr("height")) {
+                try {
+                    String hAttr = element.attr("height").replaceAll("[^0-9]", "");
+                    if (!hAttr.isEmpty()) {
+                        style.height = Integer.parseInt(hAttr);
+                    }
+                } catch (Exception ignored) {}
             }
         }
 
@@ -267,7 +289,8 @@ public class WebsiteReconstructionEngine {
         "table", "thead", "tbody", "tfoot", "tr", "th", "td",
         "ul", "ol", "li", "blockquote", "pre", "code", "hr",
         "details", "summary", "form", "button", "label", "textarea", "select", "option",
-        "h1", "h2", "h3", "h4", "h5", "h6", "p", "br", "span", "section", "a", "img", "input"
+        "h1", "h2", "h3", "h4", "h5", "h6", "p", "br", "span", "section", "a", "img", "input",
+        "header", "nav", "footer"
     ));
 
     private static void generateReconstructedHtml(LayoutNode node, StringBuilder html, StringBuilder css, Set<String> anchorIds) {
