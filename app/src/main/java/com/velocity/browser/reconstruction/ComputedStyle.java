@@ -1,4 +1,4 @@
-package com.example.browser.reconstruction;
+package com.velocity.browser.reconstruction;
 
 import java.util.HashMap;
 import java.util.Locale;

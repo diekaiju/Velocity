@@ -1,4 +1,4 @@
-package com.example.browser;
+package com.velocity.browser;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Attribute;
@@ -466,18 +466,33 @@ public final class HtmlCleaner {
 
     private static void normalizeImages(Document document, Config config) {
         for (Element img : document.select("img")) {
-            String src = firstNonEmpty(
-                    img.attr("src"),
-                    img.attr("data-src"),
-                    img.attr("data-original"),
-                    img.attr("data-lazy-src")
-            );
+            String src = img.attr("src");
+            if (isPlaceholder(src)) {
+                src = firstNonEmpty(
+                        img.attr("data-src"),
+                        img.attr("data-original"),
+                        img.attr("data-lazy-src"),
+                        img.attr("data-url")
+                );
+            }
 
-            if ((src == null || src.trim().isEmpty()) && img.hasAttr("srcset")) {
-                String srcsetSrc = extractUrlFromSrcset(img.attr("srcset"));
-                if (!srcsetSrc.isEmpty()) {
-                    src = srcsetSrc;
-                }
+            if (isPlaceholder(src) && img.hasAttr("data-srcset")) {
+                String candidate = extractUrlFromSrcset(img.attr("data-srcset"));
+                if (!candidate.isEmpty()) src = candidate;
+            }
+
+            if (isPlaceholder(src) && img.hasAttr("srcset")) {
+                String candidate = extractUrlFromSrcset(img.attr("srcset"));
+                if (!candidate.isEmpty()) src = candidate;
+            }
+
+            if (src == null || src.trim().isEmpty() || isPlaceholder(src)) {
+                src = firstNonEmpty(
+                        img.attr("src"),
+                        img.attr("data-src"),
+                        img.attr("data-original"),
+                        img.attr("data-lazy-src")
+                );
             }
 
             if (src != null && !src.trim().isEmpty()) {
@@ -485,13 +500,19 @@ public final class HtmlCleaner {
                 if (src.contains("#")) {
                     src = src.substring(0, src.indexOf('#'));
                 }
+                if (src.startsWith("//")) {
+                    src = "https:" + src;
+                }
                 src = resolveUrl(config.baseUrl, src);
                 img.attr("src", src);
             }
 
             String alt = img.attr("alt");
             if (alt == null || alt.trim().isEmpty()) {
-                img.attr("alt", "[Image]");
+                alt = img.attr("title");
+            }
+            if (alt == null || alt.trim().isEmpty()) {
+                img.attr("alt", "Image");
             }
         }
     }

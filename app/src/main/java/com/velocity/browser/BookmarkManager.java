@@ -1,4 +1,4 @@
-package com.example.browser;
+package com.velocity.browser;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -52,7 +52,10 @@ public class BookmarkManager {
         return list;
     }
 
-    public static boolean saveBookmark(Context context, String title, String url, String rawHtml) {
+    /**
+     * Save page bookmark with its offline Markdown (.md) content.
+     */
+    public static boolean saveBookmark(Context context, String title, String url, String markdownContent) {
         if (context == null || url == null || url.isEmpty()) return false;
         try {
             String id = "bm_" + Math.abs(url.hashCode());
@@ -80,12 +83,22 @@ public class BookmarkManager {
             SharedPreferences pref = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
             pref.edit().putString(KEY_BOOKMARKS, array.toString()).apply();
 
-            if (rawHtml != null && !rawHtml.isEmpty()) {
+            if (markdownContent != null && !markdownContent.isEmpty()) {
                 File dir = new File(context.getFilesDir(), "offline_bookmarks");
                 if (!dir.exists()) dir.mkdirs();
-                File file = new File(dir, id + ".html");
+
+                // Save as .md file with metadata frontmatter
+                File file = new File(dir, id + ".md");
+                StringBuilder fileContent = new StringBuilder();
+                fileContent.append("---\n");
+                fileContent.append("title: ").append(title != null ? title.replace("\n", " ") : "Untitled").append("\n");
+                fileContent.append("url: ").append(url).append("\n");
+                fileContent.append("saved_at: ").append(System.currentTimeMillis()).append("\n");
+                fileContent.append("---\n\n");
+                fileContent.append(markdownContent);
+
                 try (FileOutputStream out = new FileOutputStream(file)) {
-                    out.write(rawHtml.getBytes(StandardCharsets.UTF_8));
+                    out.write(fileContent.toString().getBytes(StandardCharsets.UTF_8));
                 }
             }
 
@@ -95,17 +108,48 @@ public class BookmarkManager {
         }
     }
 
+    /**
+     * Retrieve offline Markdown (.md) content for the bookmark ID.
+     */
     public static String getOfflineContent(Context context, String id) {
         if (context == null || id == null || id.isEmpty()) return null;
         try {
-            File file = new File(new File(context.getFilesDir(), "offline_bookmarks"), id + ".html");
-            if (!file.exists()) return null;
-            try (FileInputStream in = new FileInputStream(file)) {
-                byte[] bytes = new byte[(int) file.length()];
-                in.read(bytes);
-                return new String(bytes, StandardCharsets.UTF_8);
+            File mdFile = new File(new File(context.getFilesDir(), "offline_bookmarks"), id + ".md");
+            if (mdFile.exists()) {
+                try (FileInputStream in = new FileInputStream(mdFile)) {
+                    byte[] bytes = new byte[(int) mdFile.length()];
+                    in.read(bytes);
+                    String raw = new String(bytes, StandardCharsets.UTF_8);
+                    // Strip YAML frontmatter if present
+                    if (raw.startsWith("---")) {
+                        int secondDash = raw.indexOf("---", 3);
+                        if (secondDash != -1) {
+                            return raw.substring(secondDash + 3).trim();
+                        }
+                    }
+                    return raw;
+                }
+            }
+
+            // Fallback check for legacy .html files
+            File htmlFile = new File(new File(context.getFilesDir(), "offline_bookmarks"), id + ".html");
+            if (htmlFile.exists()) {
+                try (FileInputStream in = new FileInputStream(htmlFile)) {
+                    byte[] bytes = new byte[(int) htmlFile.length()];
+                    in.read(bytes);
+                    return new String(bytes, StandardCharsets.UTF_8);
+                }
             }
         } catch (Exception ignored) {}
+        return null;
+    }
+
+    public static File getBookmarkFile(Context context, String id) {
+        if (context == null || id == null) return null;
+        File mdFile = new File(new File(context.getFilesDir(), "offline_bookmarks"), id + ".md");
+        if (mdFile.exists()) return mdFile;
+        File htmlFile = new File(new File(context.getFilesDir(), "offline_bookmarks"), id + ".html");
+        if (htmlFile.exists()) return htmlFile;
         return null;
     }
 
@@ -130,8 +174,11 @@ public class BookmarkManager {
             SharedPreferences pref = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
             pref.edit().putString(KEY_BOOKMARKS, array.toString()).apply();
 
-            File file = new File(new File(context.getFilesDir(), "offline_bookmarks"), id + ".html");
-            if (file.exists()) file.delete();
+            File mdFile = new File(new File(context.getFilesDir(), "offline_bookmarks"), id + ".md");
+            if (mdFile.exists()) mdFile.delete();
+
+            File htmlFile = new File(new File(context.getFilesDir(), "offline_bookmarks"), id + ".html");
+            if (htmlFile.exists()) htmlFile.delete();
         } catch (Exception ignored) {}
     }
 }

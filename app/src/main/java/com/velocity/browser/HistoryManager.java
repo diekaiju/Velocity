@@ -1,4 +1,4 @@
-package com.example.browser;
+package com.velocity.browser;
 
 import android.content.Context;
 import android.content.SharedPreferences;

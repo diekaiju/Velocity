@@ -1,4 +1,4 @@
-package com.example.browser.reconstruction;
+package com.velocity.browser.reconstruction;
 
 import android.content.Context;
 import android.graphics.Color;
@@ -29,7 +29,7 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.util.TypedValue;
 
-import com.example.browser.ImageLoader;
+import com.velocity.browser.ImageLoader;
 
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
@@ -281,7 +281,7 @@ public final class NativeLayoutRenderer {
         private int resolveAttr(String name, int defaultColor) {
             int id = context.getResources().getIdentifier(name, "attr", context.getPackageName());
             if (id == 0) {
-                id = context.getResources().getIdentifier(name, "attr", "com.example.browser");
+                id = context.getResources().getIdentifier(name, "attr", "com.velocity.browser");
             }
             if (id == 0) {
                 id = context.getResources().getIdentifier(name, "attr", "androidx.appcompat");
@@ -1128,7 +1128,7 @@ public final class NativeLayoutRenderer {
 
         image.setOnLongClickListener(v -> {
             try {
-                android.content.Intent intent = new android.content.Intent(state.context, com.example.browser.ImageViewerActivity.class);
+                android.content.Intent intent = new android.content.Intent(state.context, com.velocity.browser.ImageViewerActivity.class);
                 intent.putExtra("image_url", finalCleanUrl);
                 state.context.startActivity(intent);
             } catch (Exception e) {
@@ -1154,7 +1154,7 @@ public final class NativeLayoutRenderer {
                             image.requestLayout();
 
                             if (bitmap != null) {
-                                long bytes = com.example.browser.ImageLoader.getInstance(state.context).getDiskCacheSize(finalCleanUrl);
+                                long bytes = com.velocity.browser.ImageLoader.getInstance(state.context).getDiskCacheSize(finalCleanUrl);
                                 String sizeStr;
                                 if (bytes >= 1024 * 1024) {
                                     sizeStr = String.format(Locale.ROOT, "%.1f MB", bytes / (1024.0 * 1024.0));

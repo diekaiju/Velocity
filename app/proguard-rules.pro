@@ -25,6 +25,12 @@
 -dontwarn app.cash.quickjs.**
 
 # Keep JS Bridge interfaces from obfuscation
--keep interface com.example.browser.MainActivity$LocationCallback { *; }
+-keep interface com.velocity.browser.MainActivity$LocationCallback { *; }
+
+# Markwon Proguard Rules
+-keep class io.noties.markwon.** { *; }
+-dontwarn io.noties.markwon.**
+-dontwarn com.caverock.androidsvg.**
+-dontwarn pl.droidsonroids.gif.**
 
 -dontwarn javax.annotation.**

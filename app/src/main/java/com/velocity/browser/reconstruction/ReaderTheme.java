@@ -1,4 +1,4 @@
-package com.example.browser.reconstruction;
+package com.velocity.browser.reconstruction;
 
 import android.graphics.Color;
 

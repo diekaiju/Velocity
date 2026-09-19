@@ -87,7 +87,7 @@
         android:paddingRight="16dp"
         android:paddingTop="6dp"
         android:paddingBottom="6dp"
-        android:text="DuckDuckGo HTML Privacy Search"
+        android:text="These results are provided by DuckDuckGo"
         android:textSize="12sp"
         android:textColor="?attr/colorOnSurfaceVariant"
         android:background="?attr/colorSurfaceContainer" />
