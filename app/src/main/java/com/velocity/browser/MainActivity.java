@@ -11,6 +11,7 @@ import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -187,7 +188,13 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout tabContainer;
     private EditText urlInput;
     private ProgressBar progressBar;
-    private ImageButton btnBack, btnForward, btnHome, btnRefresh, btnGo, btnNewTab, btnCloseTab;
+    private ImageButton btnBack, btnForward, btnNewTab;
+
+    private View btnTopTabs;
+    private View btnTabs;
+    private TextView tvTabCount;
+    private ImageButton btnSearch;
+    private ImageButton btnMenu;
 
     private List<Tab> tabList = new ArrayList<>();
     private int currentTabIdx = -1;
@@ -197,7 +204,7 @@ public class MainActivity extends AppCompatActivity {
 
     private ImageButton btnOutline;
     private ImageButton btnMore;
-    private ReaderTheme currentReaderTheme = ReaderTheme.LIGHT;
+    private ReaderTheme currentReaderTheme = ReaderTheme.OLED_DARK;
     private View topHeaderContainer;
     private View bottomBarContainer;
     private boolean isBarsVisible = true;
@@ -300,6 +307,66 @@ public class MainActivity extends AppCompatActivity {
         // Initialize UI
         topHeaderContainer = findViewById(R.id.topHeaderContainer);
         bottomBarContainer = findViewById(R.id.bottomBarContainer);
+        scrollView = findViewById(R.id.scrollView);
+        homePageContainer = findViewById(R.id.homePageContainer);
+        homeSearchInput = findViewById(R.id.homeSearchInput);
+        btnHomeSearchGo = findViewById(R.id.btnHomeSearchGo);
+
+        // System Bar Window Insets handling for edge-to-edge display (Android 5+ API 21-36 compatible)
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content), (v, windowInsets) -> {
+            int topInset = 0;
+            int bottomInset = 0;
+
+            try {
+                androidx.core.graphics.Insets insets = windowInsets.getInsets(
+                        androidx.core.view.WindowInsetsCompat.Type.systemBars() | androidx.core.view.WindowInsetsCompat.Type.displayCutout()
+                );
+                topInset = insets.top;
+                bottomInset = insets.bottom;
+            } catch (Exception ignored) {}
+
+            if (topInset <= 0) {
+                topInset = windowInsets.getSystemWindowInsetTop();
+            }
+            if (bottomInset <= 0) {
+                bottomInset = windowInsets.getSystemWindowInsetBottom();
+            }
+
+            if (topHeaderContainer != null) {
+                topHeaderContainer.setPadding(0, Math.max(topInset, dpToPx(12)), 0, 0);
+            }
+
+            if (bottomBarContainer != null) {
+                ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) bottomBarContainer.getLayoutParams();
+                if (lp != null) {
+                    lp.bottomMargin = bottomInset + dpToPx(14);
+                    bottomBarContainer.setLayoutParams(lp);
+                }
+            }
+
+            int topPaddingTotal = Math.max(topInset, dpToPx(24)) + dpToPx(50);
+            int bottomPaddingTotal = Math.max(bottomInset, dpToPx(16)) + dpToPx(80);
+
+            if (scrollView != null) {
+                scrollView.setPadding(
+                        scrollView.getPaddingLeft(),
+                        topPaddingTotal,
+                        scrollView.getPaddingRight(),
+                        bottomPaddingTotal
+                );
+            }
+
+            if (homePageContainer != null) {
+                homePageContainer.setPadding(
+                        homePageContainer.getPaddingLeft(),
+                        topPaddingTotal,
+                        homePageContainer.getPaddingRight(),
+                        bottomPaddingTotal
+                );
+            }
+
+            return windowInsets;
+        });
 
         // Load saved reader theme
         String savedTheme = getSharedPreferences("reader_prefs", MODE_PRIVATE).getString("selected_theme", ReaderTheme.LIGHT.name());
@@ -309,7 +376,6 @@ public class MainActivity extends AppCompatActivity {
             currentReaderTheme = ReaderTheme.LIGHT;
         }
 
-        scrollView = findViewById(R.id.scrollView);
         if (scrollView instanceof androidx.core.widget.NestedScrollView) {
             ((androidx.core.widget.NestedScrollView) scrollView).setOnScrollChangeListener(
                 (androidx.core.widget.NestedScrollView.OnScrollChangeListener) (v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
@@ -326,19 +392,12 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             );
-            scrollView.post(() -> {
-                int topHeight = topHeaderContainer != null ? topHeaderContainer.getHeight() : 0;
-                int bottomHeight = bottomBarContainer != null ? bottomBarContainer.getHeight() : 0;
-                scrollView.setPadding(scrollView.getPaddingLeft(), topHeight, scrollView.getPaddingRight(), bottomHeight);
-                ((androidx.core.widget.NestedScrollView) scrollView).setClipToPadding(false);
-            });
         }
 
-        homePageContainer = findViewById(R.id.homePageContainer);
-        homeSearchInput = findViewById(R.id.homeSearchInput);
-        btnHomeSearchGo = findViewById(R.id.btnHomeSearchGo);
-
         markdownTextView = findViewById(R.id.markdownTextView);
+        if (markdownTextView != null) {
+            markdownTextView.setTextIsSelectable(true);
+        }
         pageLayoutContainer = findViewById(R.id.pageLayoutContainer);
         tabContainer = findViewById(R.id.tabContainer);
         urlInput = findViewById(R.id.urlInput);
@@ -346,16 +405,32 @@ public class MainActivity extends AppCompatActivity {
         btnBack = findViewById(R.id.btnBack);
         btnForward = findViewById(R.id.btnForward);
         btnOutline = findViewById(R.id.btnOutline);
-        btnHome = findViewById(R.id.btnHome);
-        btnGo = findViewById(R.id.btnGo);
         btnNewTab = findViewById(R.id.btnNewTab);
         btnMore = findViewById(R.id.btnMore);
+
+        btnTopTabs = findViewById(R.id.btnTopTabs);
+        btnTabs = findViewById(R.id.btnTabs);
+        tvTabCount = findViewById(R.id.tvTabCount);
+        btnSearch = findViewById(R.id.btnSearch);
+        btnMenu = findViewById(R.id.btnMenu);
 
         if (btnOutline != null) {
             btnOutline.setOnClickListener(v -> showArticleOutline());
         }
         if (btnMore != null) {
-            btnMore.setOnClickListener(v -> showMoreOptionsSheet());
+            btnMore.setOnClickListener(v -> showPageOptionsSheet());
+        }
+        if (btnTopTabs != null) {
+            btnTopTabs.setOnClickListener(v -> showTabsSheet());
+        }
+        if (btnTabs != null) {
+            btnTabs.setOnClickListener(v -> showTabsSheet());
+        }
+        if (btnSearch != null) {
+            btnSearch.setOnClickListener(v -> showSearchDialog());
+        }
+        if (btnMenu != null) {
+            btnMenu.setOnClickListener(v -> showAppMenuSheet());
         }
 
         setupListeners();
@@ -375,43 +450,47 @@ public class MainActivity extends AppCompatActivity {
         Tab tab = new Tab(url);
         tabList.add(tab);
         
-        TextView tabView = new TextView(this);
-        tabView.setPadding(dpToPx(12), dpToPx(6), dpToPx(12), dpToPx(6));
-        tabView.setText(tab.pageTitle);
-        tabView.setSingleLine(true);
-        tabView.setMaxWidth(dpToPx(120));
-        tabView.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.setMargins(dpToPx(4), dpToPx(4), dpToPx(4), dpToPx(4));
-        tabView.setLayoutParams(params);
-        tabView.setGravity(android.view.Gravity.CENTER);
+        if (tabContainer != null) {
+            TextView tabView = new TextView(this);
+            tabView.setPadding(dpToPx(12), dpToPx(6), dpToPx(12), dpToPx(6));
+            tabView.setText(tab.pageTitle);
+            tabView.setSingleLine(true);
+            tabView.setMaxWidth(dpToPx(120));
+            tabView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            params.setMargins(dpToPx(4), dpToPx(4), dpToPx(4), dpToPx(4));
+            tabView.setLayoutParams(params);
+            tabView.setGravity(android.view.Gravity.CENTER);
 
-        tabView.setOnClickListener(v -> {
-            int idx = tabContainer.indexOfChild(v);
-            if (idx != -1) {
-                switchToTab(idx);
-            }
-        });
-        tabContainer.addView(tabView);
+            tabView.setOnClickListener(v -> {
+                int idx = tabContainer.indexOfChild(v);
+                if (idx != -1) {
+                    switchToTab(idx);
+                }
+            });
+            tabContainer.addView(tabView);
+        }
         
         switchToTab(tabList.size() - 1);
+        updateButtons();
         if (!url.equals("home")) {
             loadUrl(url, false);
         }
     }
 
     private void setupListeners() {
-        btnGo.setOnClickListener(v -> handleUrlInput());
-        urlInput.setOnEditorActionListener((v, actionId, event) -> {
-            if (actionId == EditorInfo.IME_ACTION_GO || (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
-                handleUrlInput();
-                return true;
-            }
-            return false;
-        });
+        if (urlInput != null) {
+            urlInput.setOnEditorActionListener((v, actionId, event) -> {
+                if (actionId == EditorInfo.IME_ACTION_GO || (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
+                    handleUrlInput();
+                    return true;
+                }
+                return false;
+            });
+        }
 
         // Home Page Search input trigger
         btnHomeSearchGo.setOnClickListener(v -> triggerHomeSearch());
@@ -496,31 +575,12 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        if (btnHome != null) {
-            btnHome.setOnClickListener(v -> {
-                if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
-                    Tab tab = tabList.get(currentTabIdx);
-                    tab.addHistory("home");
-                    tab.markdownContent = "";
-                    tab.pageTitle = "Home";
-                    switchToTab(currentTabIdx);
-                }
+        if (btnNewTab != null) {
+            btnNewTab.setOnClickListener(v -> {
+                createNewTab("home");
+                showSearchDialog();
             });
         }
-
-        if (btnRefresh != null) {
-            btnRefresh.setOnClickListener(v -> {
-                if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
-                    String currentUrl = tabList.get(currentTabIdx).currentUrl;
-                    if (!currentUrl.equals("home")) {
-                        loadUrl(currentUrl, false);
-                    }
-                }
-            });
-        }
-
-        if (btnNewTab != null) btnNewTab.setOnClickListener(v -> createNewTab("home"));
-        if (btnCloseTab != null) btnCloseTab.setOnClickListener(v -> closeCurrentTab());
     }
 
     private void pickLocalMarkdownFile() {
@@ -1074,12 +1134,16 @@ public class MainActivity extends AppCompatActivity {
                 tab.pageTitle = "Home";
                 switchToTab(currentTabIdx);
             }
+            updateButtons();
             return;
         }
-        tabContainer.removeViewAt(currentTabIdx);
+        if (tabContainer != null && tabContainer.getChildCount() > currentTabIdx) {
+            tabContainer.removeViewAt(currentTabIdx);
+        }
         tabList.remove(currentTabIdx);
         int newIdx = Math.max(0, currentTabIdx - 1);
         switchToTab(newIdx);
+        updateButtons();
     }
 
     private void hideNavigationBars() {
@@ -1087,15 +1151,17 @@ public class MainActivity extends AppCompatActivity {
         isBarsVisible = false;
         if (topHeaderContainer != null) {
             topHeaderContainer.animate()
-                    .translationY(-topHeaderContainer.getHeight())
-                    .setDuration(220)
+                    .translationY(-topHeaderContainer.getHeight() - dpToPx(30))
+                    .alpha(0f)
+                    .setDuration(240)
                     .setInterpolator(new android.view.animation.DecelerateInterpolator())
                     .start();
         }
         if (bottomBarContainer != null) {
             bottomBarContainer.animate()
-                    .translationY(bottomBarContainer.getHeight())
-                    .setDuration(220)
+                    .translationY(bottomBarContainer.getHeight() + dpToPx(100))
+                    .alpha(0f)
+                    .setDuration(240)
                     .setInterpolator(new android.view.animation.DecelerateInterpolator())
                     .start();
         }
@@ -1107,16 +1173,214 @@ public class MainActivity extends AppCompatActivity {
         if (topHeaderContainer != null) {
             topHeaderContainer.animate()
                     .translationY(0)
-                    .setDuration(220)
+                    .alpha(1f)
+                    .setDuration(240)
                     .setInterpolator(new android.view.animation.DecelerateInterpolator())
                     .start();
         }
         if (bottomBarContainer != null) {
             bottomBarContainer.animate()
                     .translationY(0)
-                    .setDuration(220)
+                    .alpha(1f)
+                    .setDuration(240)
                     .setInterpolator(new android.view.animation.DecelerateInterpolator())
                     .start();
+        }
+    }
+
+    private void showTabsSheet() {
+        com.google.android.material.bottomsheet.BottomSheetDialog dialog =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+        View sheetView = getLayoutInflater().inflate(R.layout.dialog_tabs_bottom_sheet, null);
+        dialog.setContentView(sheetView);
+
+        TextView tvHeader = sheetView.findViewById(R.id.tvTabsHeaderTitle);
+        if (tvHeader != null) {
+            tvHeader.setText("Open Tabs (" + tabList.size() + ")");
+        }
+
+        View btnNewTabInSheet = sheetView.findViewById(R.id.btnNewTabInSheet);
+        if (btnNewTabInSheet != null) {
+            btnNewTabInSheet.setOnClickListener(v -> {
+                dialog.dismiss();
+                createNewTab("home");
+                showSearchDialog();
+            });
+        }
+
+        LinearLayout container = sheetView.findViewById(R.id.tabCardsContainer);
+        if (container != null) {
+            container.removeAllViews();
+            for (int i = 0; i < tabList.size(); i++) {
+                final int tabIdx = i;
+                Tab tab = tabList.get(i);
+                View card = getLayoutInflater().inflate(R.layout.item_tab_card, container, false);
+
+                TextView tvBadge = card.findViewById(R.id.tvTabBadgeNumber);
+                TextView tvTitle = card.findViewById(R.id.tvTabCardTitle);
+                TextView tvUrl = card.findViewById(R.id.tvTabCardUrl);
+                View btnClose = card.findViewById(R.id.btnTabCardClose);
+
+                if (tvBadge != null) {
+                    tvBadge.setText(String.valueOf(i + 1));
+                }
+                if (tvTitle != null) {
+                    tvTitle.setText(tab.pageTitle != null && !tab.pageTitle.isEmpty() ? tab.pageTitle : "Untitled Tab");
+                }
+                if (tvUrl != null) {
+                    tvUrl.setText(tab.currentUrl != null ? tab.currentUrl : "about:blank");
+                }
+
+                if (tabIdx == currentTabIdx) {
+                    GradientDrawable activeBg = new GradientDrawable();
+                    activeBg.setColor(android.graphics.Color.parseColor("#2E2B38"));
+                    activeBg.setStroke(dpToPx(2), android.graphics.Color.parseColor("#D0BCFF"));
+                    activeBg.setCornerRadius(dpToPx(20));
+                    card.setBackground(activeBg);
+                }
+
+                card.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    switchToTab(tabIdx);
+                });
+
+                if (btnClose != null) {
+                    btnClose.setOnClickListener(v -> {
+                        if (tabList.size() <= 1) {
+                            tabList.get(0).currentUrl = "home";
+                            tabList.get(0).pageTitle = "Home";
+                            tabList.get(0).markdownContent = "";
+                            switchToTab(0);
+                            dialog.dismiss();
+                        } else {
+                            tabList.remove(tabIdx);
+                            if (tabIdx == currentTabIdx) {
+                                int newIdx = Math.max(0, tabIdx - 1);
+                                switchToTab(newIdx);
+                            } else if (tabIdx < currentTabIdx) {
+                                currentTabIdx--;
+                            }
+                            dialog.dismiss();
+                            showTabsSheet();
+                        }
+                        updateButtons();
+                    });
+                }
+
+                container.addView(card);
+            }
+        }
+
+        dialog.show();
+    }
+
+    private void showSearchDialog() {
+        com.google.android.material.bottomsheet.BottomSheetDialog dialog =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+        View sheetView = getLayoutInflater().inflate(R.layout.dialog_search_bottom_sheet, null);
+        dialog.setContentView(sheetView);
+
+        EditText input = sheetView.findViewById(R.id.dialogSearchInput);
+        ImageButton btnClear = sheetView.findViewById(R.id.dialogBtnClear);
+        View btnGo = sheetView.findViewById(R.id.dialogBtnGo);
+
+        if (input != null && currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
+            Tab currentTab = tabList.get(currentTabIdx);
+            if (currentTab.currentUrl != null && !currentTab.currentUrl.equals("home")) {
+                input.setText(currentTab.currentUrl);
+                input.selectAll();
+            }
+        }
+
+        if (input != null) {
+            input.addTextChangedListener(new android.text.TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    if (btnClear != null) {
+                        btnClear.setVisibility(s != null && s.length() > 0 ? View.VISIBLE : View.GONE);
+                    }
+                }
+                @Override
+                public void afterTextChanged(android.text.Editable s) {}
+            });
+        }
+
+        if (btnClear != null && input != null) {
+            btnClear.setOnClickListener(v -> input.setText(""));
+        }
+
+        Runnable executeSearch = () -> {
+            if (input == null) return;
+            String text = input.getText().toString().trim();
+            if (!text.isEmpty()) {
+                dialog.dismiss();
+                if (urlInput != null) urlInput.setText(text);
+                handleUrlInputDirect(text);
+            }
+        };
+
+        if (btnGo != null) {
+            btnGo.setOnClickListener(v -> executeSearch.run());
+        }
+
+        if (input != null) {
+            input.setOnEditorActionListener((v, actionId, event) -> {
+                if (actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_SEARCH ||
+                        (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
+                    executeSearch.run();
+                    return true;
+                }
+                return false;
+            });
+        }
+
+        View chipDuck = sheetView.findViewById(R.id.chipDuckDuckGo);
+        View chipWiki = sheetView.findViewById(R.id.chipWikipedia);
+        View chipHacker = sheetView.findViewById(R.id.chipHackerNews);
+        View chipGuten = sheetView.findViewById(R.id.chipGutenberg);
+
+        if (chipDuck != null) chipDuck.setOnClickListener(v -> {
+            dialog.dismiss();
+            String q = (input != null) ? input.getText().toString().trim() : "";
+            openSearchTab(q.isEmpty() ? "DuckDuckGo" : q, false);
+        });
+        if (chipWiki != null) chipWiki.setOnClickListener(v -> { dialog.dismiss(); loadUrl("https://en.wikipedia.org/wiki/Special:Random", true); });
+        if (chipHacker != null) chipHacker.setOnClickListener(v -> { dialog.dismiss(); loadUrl("https://news.ycombinator.com/", true); });
+        if (chipGuten != null) chipGuten.setOnClickListener(v -> { dialog.dismiss(); loadUrl("https://gutenberg.org/", true); });
+
+        dialog.setOnShowListener(d -> {
+            if (input != null) {
+                input.requestFocus();
+                android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+                if (imm != null) {
+                    imm.showSoftInput(input, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+                }
+            }
+        });
+
+        dialog.show();
+    }
+
+    private void handleUrlInputDirect(String input) {
+        if (input == null || input.isEmpty()) return;
+        String searchQuery = extractSearchQuery(input);
+        if (searchQuery != null) {
+            openSearchTab(searchQuery, false);
+        } else if (isUrl(input)) {
+            String processedUrl = processUrl(input);
+            loadUrl(processedUrl, true);
+        } else {
+            String currentDomain = null;
+            if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
+                currentDomain = extractDomain(tabList.get(currentTabIdx).currentUrl);
+            }
+            String finalQuery = input;
+            if (currentDomain != null && !currentDomain.contains("duckduckgo.com") && !input.contains("site:")) {
+                finalQuery = input + " site:" + currentDomain;
+            }
+            openSearchTab(finalQuery, false);
         }
     }
 
@@ -1127,17 +1391,21 @@ public class MainActivity extends AppCompatActivity {
             Tab tab = tabList.get(position);
             
             if (tab.currentUrl.equals("home")) {
-                urlInput.setText("");
-                urlInput.setHint("Search or type URL");
+                if (urlInput != null) {
+                    urlInput.setText("");
+                    urlInput.setHint("Search or type URL");
+                }
                 homePageContainer.setVisibility(View.VISIBLE);
                 scrollView.setVisibility(View.GONE);
             } else {
-                urlInput.setText(tab.currentUrl);
-                String domain = extractDomain(tab.currentUrl);
-                if (domain != null && !domain.contains("duckduckgo.com")) {
-                    urlInput.setHint("Search " + domain + " or type URL");
-                } else {
-                    urlInput.setHint("Search or type URL");
+                if (urlInput != null) {
+                    urlInput.setText(tab.currentUrl);
+                    String domain = extractDomain(tab.currentUrl);
+                    if (domain != null && !domain.contains("duckduckgo.com")) {
+                        urlInput.setHint("Search " + domain + " or type URL");
+                    } else {
+                        urlInput.setHint("Search or type URL");
+                    }
                 }
                 homePageContainer.setVisibility(View.GONE);
                 scrollView.setVisibility(View.VISIBLE);
@@ -1148,22 +1416,24 @@ public class MainActivity extends AppCompatActivity {
             
             updateButtons();
 
-            for (int i = 0; i < tabContainer.getChildCount(); i++) {
-                TextView tv = (TextView) tabContainer.getChildAt(i);
-                GradientDrawable gd = new GradientDrawable();
-                gd.setCornerRadius(dpToPx(6));
-                if (i == position) {
-                    tv.setTextColor(0xFF202124);
-                    tv.setTypeface(null, android.graphics.Typeface.BOLD);
-                    gd.setColor(0xFFFFFFFF);
-                    gd.setStroke(dpToPx(1), 0xFFDADCE0);
-                } else {
-                    tv.setTextColor(0xFF5F6368);
-                    tv.setTypeface(null, android.graphics.Typeface.NORMAL);
-                    gd.setColor(0xFFE8EAED);
-                    gd.setStroke(dpToPx(1), 0xFFDADCE0);
+            if (tabContainer != null) {
+                for (int i = 0; i < tabContainer.getChildCount(); i++) {
+                    TextView tv = (TextView) tabContainer.getChildAt(i);
+                    GradientDrawable gd = new GradientDrawable();
+                    gd.setCornerRadius(dpToPx(6));
+                    if (i == position) {
+                        tv.setTextColor(0xFF202124);
+                        tv.setTypeface(null, android.graphics.Typeface.BOLD);
+                        gd.setColor(0xFFFFFFFF);
+                        gd.setStroke(dpToPx(1), 0xFFDADCE0);
+                    } else {
+                        tv.setTextColor(0xFF5F6368);
+                        tv.setTypeface(null, android.graphics.Typeface.NORMAL);
+                        gd.setColor(0xFFE8EAED);
+                        gd.setStroke(dpToPx(1), 0xFFDADCE0);
+                    }
+                    tv.setBackground(gd);
                 }
-                tv.setBackground(gd);
             }
         }
     }
@@ -1362,6 +1632,7 @@ public class MainActivity extends AppCompatActivity {
         );
 
         markwon.setMarkdown(markdownTextView, md);
+        markdownTextView.setTextIsSelectable(true);
     }
 
     private void showArticleOutline() {
@@ -1374,41 +1645,56 @@ public class MainActivity extends AppCompatActivity {
 
         com.google.android.material.bottomsheet.BottomSheetDialog dialog =
                 new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+        View sheetView = getLayoutInflater().inflate(R.layout.dialog_outline_sheet, null);
+        dialog.setContentView(sheetView);
 
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(24));
-        layout.setBackgroundColor(android.graphics.Color.parseColor("#1C1B1F"));
+        LinearLayout container = sheetView.findViewById(R.id.outlineListContainer);
+        if (container != null) {
+            container.removeAllViews();
+            for (int i = 0; i < tab.headings.size(); i++) {
+                final HtmlToMarkdownConverter.HeadingItem item = tab.headings.get(i);
 
-        TextView title = new TextView(this);
-        title.setText("Table of Contents");
-        title.setTextSize(18f);
-        title.setTextColor(android.graphics.Color.WHITE);
-        title.setTypeface(null, android.graphics.Typeface.BOLD);
-        title.setPadding(0, 0, 0, dpToPx(12));
-        layout.addView(title);
+                LinearLayout row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+                int indent = Math.max(0, (item.level - 1) * dpToPx(12));
+                row.setPadding(dpToPx(14) + indent, dpToPx(12), dpToPx(14), dpToPx(12));
+                row.setClickable(true);
+                row.setFocusable(true);
 
-        androidx.core.widget.NestedScrollView sheetScroll = new androidx.core.widget.NestedScrollView(this);
-        LinearLayout itemsList = new LinearLayout(this);
-        itemsList.setOrientation(LinearLayout.VERTICAL);
+                ImageView icon = new ImageView(this);
+                icon.setImageResource(R.drawable.ic_book_reader);
+                icon.setImageTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor(item.level == 1 ? "#A8C7FA" : "#9EACB8")));
+                LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dpToPx(18), dpToPx(18));
+                iconLp.setMarginEnd(dpToPx(12));
+                row.addView(icon, iconLp);
 
-        for (HtmlToMarkdownConverter.HeadingItem item : tab.headings) {
-            TextView itemTv = new TextView(this);
-            int indent = (item.level - 1) * dpToPx(14);
-            itemTv.setPadding(indent + dpToPx(8), dpToPx(10), dpToPx(8), dpToPx(10));
-            itemTv.setText((item.level > 1 ? "• " : "") + item.title);
-            itemTv.setTextSize(item.level == 1 ? 16f : 14f);
-            itemTv.setTextColor(item.level == 1 ? android.graphics.Color.parseColor("#90CAF9") : android.graphics.Color.WHITE);
-            itemTv.setOnClickListener(v -> {
-                dialog.dismiss();
-                scrollToElement(item.anchorId, item.title);
-            });
-            itemsList.addView(itemTv);
+                TextView itemTv = new TextView(this);
+                itemTv.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+                itemTv.setText(item.title);
+                itemTv.setTextSize(item.level == 1 ? 15f : 14f);
+                itemTv.setTextColor(item.level == 1 ? android.graphics.Color.parseColor("#A8C7FA") : android.graphics.Color.WHITE);
+                if (item.level == 1) {
+                    itemTv.setTypeface(null, android.graphics.Typeface.BOLD);
+                }
+                row.addView(itemTv);
+
+                row.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    scrollToElement(item.anchorId, item.title);
+                });
+
+                container.addView(row);
+
+                if (i < tab.headings.size() - 1) {
+                    View divider = new View(this);
+                    divider.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dpToPx(1)));
+                    divider.setBackgroundColor(android.graphics.Color.parseColor("#313238"));
+                    container.addView(divider);
+                }
+            }
         }
 
-        sheetScroll.addView(itemsList);
-        layout.addView(sheetScroll);
-        dialog.setContentView(layout);
         dialog.show();
     }
 
@@ -1419,29 +1705,44 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(24));
-        layout.setBackgroundColor(android.graphics.Color.parseColor("#1C1B1F"));
+        layout.setBackgroundColor(android.graphics.Color.parseColor("#1B1C1F"));
+
+        View handle = new View(this);
+        LinearLayout.LayoutParams handleLp = new LinearLayout.LayoutParams(dpToPx(38), dpToPx(4));
+        handleLp.gravity = android.view.Gravity.CENTER_HORIZONTAL;
+        handleLp.setMargins(0, 0, 0, dpToPx(14));
+        handle.setLayoutParams(handleLp);
+        handle.setBackgroundResource(R.drawable.bg_tab_badge);
+        handle.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#4E5056")));
+        layout.addView(handle);
 
         TextView title = new TextView(this);
         title.setText("Select Reader Theme");
-        title.setTextSize(18f);
+        title.setTextSize(17f);
         title.setTextColor(android.graphics.Color.WHITE);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         title.setPadding(0, 0, 0, dpToPx(12));
         layout.addView(title);
 
+        LinearLayout cardContainer = new LinearLayout(this);
+        cardContainer.setOrientation(LinearLayout.VERTICAL);
+        cardContainer.setBackgroundResource(R.drawable.bg_top_pill);
+        cardContainer.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#242529")));
+        cardContainer.setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8));
+
         ReaderTheme[] themes = ReaderTheme.values();
-        for (ReaderTheme t : themes) {
+        for (int i = 0; i < themes.length; i++) {
+            ReaderTheme t = themes[i];
             TextView themeOption = new TextView(this);
             themeOption.setText(t.displayName);
-            themeOption.setTextSize(16f);
-            themeOption.setPadding(dpToPx(12), dpToPx(12), dpToPx(12), dpToPx(12));
-
+            themeOption.setTextSize(15f);
+            themeOption.setPadding(dpToPx(14), dpToPx(12), dpToPx(14), dpToPx(12));
             themeOption.setTextColor(t.textColor);
 
             GradientDrawable gd = new GradientDrawable();
             gd.setColor(t.backgroundColor);
-            gd.setStroke(dpToPx(2), t.borderColor);
-            gd.setCornerRadius(dpToPx(8));
+            gd.setStroke(dpToPx(1.5f), t.borderColor);
+            gd.setCornerRadius(dpToPx(12));
             themeOption.setBackground(gd);
 
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -1457,9 +1758,10 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
 
-            layout.addView(themeOption);
+            cardContainer.addView(themeOption);
         }
 
+        layout.addView(cardContainer);
         dialog.setContentView(layout);
         dialog.show();
     }
@@ -1483,172 +1785,226 @@ public class MainActivity extends AppCompatActivity {
     private void showBookmarksSheet() {
         com.google.android.material.bottomsheet.BottomSheetDialog dialog =
                 new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+        View sheetView = getLayoutInflater().inflate(R.layout.dialog_bookmarks_sheet, null);
+        dialog.setContentView(sheetView);
 
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(24));
-        layout.setBackgroundColor(android.graphics.Color.parseColor("#1C1B1F"));
-
-        TextView title = new TextView(this);
-        title.setText("Saved Offline Markdown Documents");
-        title.setTextSize(18f);
-        title.setTextColor(android.graphics.Color.WHITE);
-        title.setTypeface(null, android.graphics.Typeface.BOLD);
-        title.setPadding(0, 0, 0, dpToPx(12));
-        layout.addView(title);
+        View emptyState = sheetView.findViewById(R.id.bookmarksEmptyState);
+        View scrollViewContainer = sheetView.findViewById(R.id.bookmarksScrollView);
+        LinearLayout container = sheetView.findViewById(R.id.bookmarksListContainer);
 
         List<BookmarkManager.BookmarkItem> bookmarks = BookmarkManager.getBookmarks(this);
         if (bookmarks.isEmpty()) {
-            TextView emptyTv = new TextView(this);
-            emptyTv.setText("No saved .md documents yet.\nClick 'Save Page Offline' on any page to save it as a native Markdown file.");
-            emptyTv.setTextSize(14f);
-            emptyTv.setTextColor(android.graphics.Color.parseColor("#E6E1E5"));
-            emptyTv.setPadding(0, dpToPx(16), 0, dpToPx(16));
-            layout.addView(emptyTv);
+            if (emptyState != null) emptyState.setVisibility(View.VISIBLE);
+            if (scrollViewContainer != null) scrollViewContainer.setVisibility(View.GONE);
         } else {
-            androidx.core.widget.NestedScrollView sheetScroll = new androidx.core.widget.NestedScrollView(this);
-            LinearLayout itemsList = new LinearLayout(this);
-            itemsList.setOrientation(LinearLayout.VERTICAL);
+            if (emptyState != null) emptyState.setVisibility(View.GONE);
+            if (scrollViewContainer != null) scrollViewContainer.setVisibility(View.VISIBLE);
 
-            for (BookmarkManager.BookmarkItem bm : bookmarks) {
-                LinearLayout row = new LinearLayout(this);
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                row.setPadding(dpToPx(8), dpToPx(12), dpToPx(8), dpToPx(12));
-                row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            if (container != null) {
+                container.removeAllViews();
+                for (int i = 0; i < bookmarks.size(); i++) {
+                    final BookmarkManager.BookmarkItem bm = bookmarks.get(i);
 
-                TextView itemTv = new TextView(this);
-                itemTv.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
-                itemTv.setText("📄 " + bm.title + "\n" + bm.url);
-                itemTv.setTextSize(14f);
-                itemTv.setTextColor(android.graphics.Color.WHITE);
-                itemTv.setOnClickListener(v -> {
-                    dialog.dismiss();
-                    String offlineMd = BookmarkManager.getOfflineContent(MainActivity.this, bm.id);
-                    if (offlineMd != null && !offlineMd.isEmpty()) {
-                        renderOfflineMarkdown(bm.title, bm.url, offlineMd);
-                    } else {
-                        loadUrl(bm.url, true);
+                    LinearLayout row = new LinearLayout(this);
+                    row.setOrientation(LinearLayout.HORIZONTAL);
+                    row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+                    row.setPadding(dpToPx(14), dpToPx(12), dpToPx(14), dpToPx(12));
+                    row.setClickable(true);
+                    row.setFocusable(true);
+
+                    ImageView icon = new ImageView(this);
+                    icon.setImageResource(R.drawable.ic_bookmark_star);
+                    icon.setImageTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#A8C7FA")));
+                    LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dpToPx(20), dpToPx(20));
+                    iconLp.setMarginEnd(dpToPx(12));
+                    row.addView(icon, iconLp);
+
+                    LinearLayout textCol = new LinearLayout(this);
+                    textCol.setOrientation(LinearLayout.VERTICAL);
+                    textCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+
+                    TextView titleTv = new TextView(this);
+                    titleTv.setText(bm.title);
+                    titleTv.setTextSize(14.5f);
+                    titleTv.setTextColor(android.graphics.Color.WHITE);
+                    titleTv.setTypeface(null, android.graphics.Typeface.BOLD);
+                    titleTv.setSingleLine(true);
+                    titleTv.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                    textCol.addView(titleTv);
+
+                    TextView urlTv = new TextView(this);
+                    urlTv.setText(bm.url);
+                    urlTv.setTextSize(12f);
+                    urlTv.setTextColor(android.graphics.Color.parseColor("#9EACB8"));
+                    urlTv.setSingleLine(true);
+                    urlTv.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                    textCol.addView(urlTv);
+
+                    row.addView(textCol);
+
+                    ImageButton btnDel = new ImageButton(this);
+                    btnDel.setImageResource(R.drawable.ic_close_m3);
+                    btnDel.setImageTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#8E929B")));
+                    btnDel.setBackgroundResource(R.drawable.bg_top_pill);
+                    btnDel.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT));
+                    LinearLayout.LayoutParams delLp = new LinearLayout.LayoutParams(dpToPx(32), dpToPx(32));
+                    btnDel.setLayoutParams(delLp);
+                    btnDel.setOnClickListener(v -> {
+                        BookmarkManager.deleteBookmark(MainActivity.this, bm.id);
+                        dialog.dismiss();
+                        Toast.makeText(MainActivity.this, "Document deleted", Toast.LENGTH_SHORT).show();
+                        showBookmarksSheet();
+                    });
+                    row.addView(btnDel);
+
+                    row.setOnClickListener(v -> {
+                        dialog.dismiss();
+                        String offlineMd = BookmarkManager.getOfflineContent(MainActivity.this, bm.id);
+                        if (offlineMd != null && !offlineMd.isEmpty()) {
+                            renderOfflineMarkdown(bm.title, bm.url, offlineMd);
+                        } else {
+                            loadUrl(bm.url, true);
+                        }
+                    });
+
+                    container.addView(row);
+
+                    if (i < bookmarks.size() - 1) {
+                        View divider = new View(this);
+                        divider.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dpToPx(1)));
+                        divider.setBackgroundColor(android.graphics.Color.parseColor("#313238"));
+                        container.addView(divider);
                     }
-                });
-                row.addView(itemTv);
-
-                ImageButton btnDel = new ImageButton(this);
-                btnDel.setImageResource(android.R.drawable.ic_menu_delete);
-                btnDel.setBackgroundResource(android.R.drawable.btn_dialog);
-                btnDel.setOnClickListener(v -> {
-                    BookmarkManager.deleteBookmark(MainActivity.this, bm.id);
-                    dialog.dismiss();
-                    Toast.makeText(MainActivity.this, "Document deleted", Toast.LENGTH_SHORT).show();
-                });
-                row.addView(btnDel);
-
-                itemsList.addView(row);
+                }
             }
-            sheetScroll.addView(itemsList);
-            layout.addView(sheetScroll);
         }
 
-        dialog.setContentView(layout);
         dialog.show();
     }
 
     private void renderOfflineMarkdown(String pageTitle, String url, String markdown) {
-        if (currentTabIdx < 0 || currentTabIdx >= tabList.size()) return;
+        if (currentTabIdx < 0 || currentTabIdx >= tabList.size()) {
+            createNewTab(url);
+        }
         Tab tab = tabList.get(currentTabIdx);
         tab.currentUrl = url;
+        tab.pageTitle = pageTitle;
+        tab.addHistory(url);
         tab.saveCurrentState(markdown, pageTitle, new HashMap<>(), extractMarkdownHeadings(markdown));
 
         runOnUiThread(() -> {
+            homePageContainer.setVisibility(View.GONE);
+            scrollView.setVisibility(View.VISIBLE);
             renderMarkdownContent(tab);
-            urlInput.setText(url);
+            if (urlInput != null) urlInput.setText(url);
             scrollView.post(() -> scrollView.scrollTo(0, 0));
-            Toast.makeText(MainActivity.this, "Reading Offline .md Document", Toast.LENGTH_SHORT).show();
+            updateButtons();
+            Toast.makeText(MainActivity.this, "Loaded: " + pageTitle, Toast.LENGTH_SHORT).show();
         });
     }
 
     private void showHistorySheet() {
         com.google.android.material.bottomsheet.BottomSheetDialog dialog =
                 new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+        View sheetView = getLayoutInflater().inflate(R.layout.dialog_history_sheet, null);
+        dialog.setContentView(sheetView);
 
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(24));
-        layout.setBackgroundColor(android.graphics.Color.parseColor("#1C1B1F"));
+        View emptyState = sheetView.findViewById(R.id.historyEmptyState);
+        View scrollViewContainer = sheetView.findViewById(R.id.historyScrollView);
+        LinearLayout container = sheetView.findViewById(R.id.historyListContainer);
+        View btnClearAll = sheetView.findViewById(R.id.btnHistoryClearAll);
 
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        header.setPadding(0, 0, 0, dpToPx(12));
-
-        TextView title = new TextView(this);
-        title.setText("Browsing History");
-        title.setTextSize(18f);
-        title.setTextColor(android.graphics.Color.WHITE);
-        title.setTypeface(null, android.graphics.Typeface.BOLD);
-        header.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
-
-        TextView clearBtn = new TextView(this);
-        clearBtn.setText("CLEAR HISTORY");
-        clearBtn.setTextSize(12f);
-        clearBtn.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        clearBtn.setTextColor(android.graphics.Color.parseColor("#FF8A80"));
-        clearBtn.setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4));
-        clearBtn.setOnClickListener(v -> {
-            HistoryManager.clearHistory(MainActivity.this);
-            dialog.dismiss();
-            Toast.makeText(MainActivity.this, "History cleared", Toast.LENGTH_SHORT).show();
-        });
-        header.addView(clearBtn);
-
-        layout.addView(header);
+        if (btnClearAll != null) {
+            btnClearAll.setOnClickListener(v -> {
+                HistoryManager.clearHistory(MainActivity.this);
+                dialog.dismiss();
+                Toast.makeText(MainActivity.this, "History cleared", Toast.LENGTH_SHORT).show();
+            });
+        }
 
         List<HistoryManager.HistoryItem> history = HistoryManager.getHistory(this);
         if (history.isEmpty()) {
-            TextView emptyTv = new TextView(this);
-            emptyTv.setText("No browsing history found.");
-            emptyTv.setTextSize(14f);
-            emptyTv.setTextColor(android.graphics.Color.parseColor("#E6E1E5"));
-            emptyTv.setPadding(0, dpToPx(16), 0, dpToPx(16));
-            layout.addView(emptyTv);
+            if (emptyState != null) emptyState.setVisibility(View.VISIBLE);
+            if (scrollViewContainer != null) scrollViewContainer.setVisibility(View.GONE);
+            if (btnClearAll != null) btnClearAll.setVisibility(View.GONE);
         } else {
-            androidx.core.widget.NestedScrollView sheetScroll = new androidx.core.widget.NestedScrollView(this);
-            LinearLayout itemsList = new LinearLayout(this);
-            itemsList.setOrientation(LinearLayout.VERTICAL);
+            if (emptyState != null) emptyState.setVisibility(View.GONE);
+            if (scrollViewContainer != null) scrollViewContainer.setVisibility(View.VISIBLE);
+            if (btnClearAll != null) btnClearAll.setVisibility(View.VISIBLE);
 
-            for (HistoryManager.HistoryItem item : history) {
-                LinearLayout row = new LinearLayout(this);
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                row.setPadding(dpToPx(8), dpToPx(10), dpToPx(8), dpToPx(10));
-                row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            if (container != null) {
+                container.removeAllViews();
+                for (int i = 0; i < history.size(); i++) {
+                    final HistoryManager.HistoryItem item = history.get(i);
 
-                TextView itemTv = new TextView(this);
-                itemTv.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
-                itemTv.setText(item.title + "\n" + item.url);
-                itemTv.setTextSize(14f);
-                itemTv.setTextColor(android.graphics.Color.WHITE);
-                itemTv.setOnClickListener(v -> {
-                    dialog.dismiss();
-                    loadUrl(item.url, true);
-                });
-                row.addView(itemTv);
+                    LinearLayout row = new LinearLayout(this);
+                    row.setOrientation(LinearLayout.HORIZONTAL);
+                    row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+                    row.setPadding(dpToPx(14), dpToPx(12), dpToPx(14), dpToPx(12));
+                    row.setClickable(true);
+                    row.setFocusable(true);
 
-                ImageButton btnDel = new ImageButton(this);
-                btnDel.setImageResource(android.R.drawable.ic_menu_delete);
-                btnDel.setBackgroundResource(android.R.drawable.btn_dialog);
-                btnDel.setOnClickListener(v -> {
-                    HistoryManager.deleteHistoryItem(MainActivity.this, item.id);
-                    dialog.dismiss();
-                    showHistorySheet();
-                });
-                row.addView(btnDel);
+                    ImageView icon = new ImageView(this);
+                    icon.setImageResource(R.drawable.ic_history_clock);
+                    icon.setImageTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#A8C7FA")));
+                    LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dpToPx(20), dpToPx(20));
+                    iconLp.setMarginEnd(dpToPx(12));
+                    row.addView(icon, iconLp);
 
-                itemsList.addView(row);
+                    LinearLayout textCol = new LinearLayout(this);
+                    textCol.setOrientation(LinearLayout.VERTICAL);
+                    textCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+
+                    TextView titleTv = new TextView(this);
+                    titleTv.setText(item.title);
+                    titleTv.setTextSize(14.5f);
+                    titleTv.setTextColor(android.graphics.Color.WHITE);
+                    titleTv.setTypeface(null, android.graphics.Typeface.BOLD);
+                    titleTv.setSingleLine(true);
+                    titleTv.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                    textCol.addView(titleTv);
+
+                    TextView urlTv = new TextView(this);
+                    urlTv.setText(item.url);
+                    urlTv.setTextSize(12f);
+                    urlTv.setTextColor(android.graphics.Color.parseColor("#9EACB8"));
+                    urlTv.setSingleLine(true);
+                    urlTv.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                    textCol.addView(urlTv);
+
+                    row.addView(textCol);
+
+                    ImageButton btnDel = new ImageButton(this);
+                    btnDel.setImageResource(R.drawable.ic_close_m3);
+                    btnDel.setImageTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#8E929B")));
+                    btnDel.setBackgroundResource(R.drawable.bg_top_pill);
+                    btnDel.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT));
+                    LinearLayout.LayoutParams delLp = new LinearLayout.LayoutParams(dpToPx(32), dpToPx(32));
+                    btnDel.setLayoutParams(delLp);
+                    btnDel.setOnClickListener(v -> {
+                        HistoryManager.deleteHistoryItem(MainActivity.this, item.id);
+                        dialog.dismiss();
+                        showHistorySheet();
+                    });
+                    row.addView(btnDel);
+
+                    row.setOnClickListener(v -> {
+                        dialog.dismiss();
+                        loadUrl(item.url, true);
+                    });
+
+                    container.addView(row);
+
+                    if (i < history.size() - 1) {
+                        View divider = new View(this);
+                        divider.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dpToPx(1)));
+                        divider.setBackgroundColor(android.graphics.Color.parseColor("#313238"));
+                        container.addView(divider);
+                    }
+                }
             }
-            sheetScroll.addView(itemsList);
-            layout.addView(sheetScroll);
         }
 
-        dialog.setContentView(layout);
         dialog.show();
     }
 
@@ -1679,70 +2035,44 @@ public class MainActivity extends AppCompatActivity {
         textToSpeech.speak(readableText, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "VelocityTTS");
     }
 
-    private void showMoreOptionsSheet() {
+    private void showPageOptionsSheet() {
         com.google.android.material.bottomsheet.BottomSheetDialog dialog =
                 new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+        View sheetView = getLayoutInflater().inflate(R.layout.dialog_page_options_sheet, null);
+        dialog.setContentView(sheetView);
 
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(24));
-        layout.setBackgroundColor(android.graphics.Color.parseColor("#1C1B1F"));
-
-        TextView title = new TextView(this);
-        title.setText("More Options");
-        title.setTextSize(18f);
-        title.setTextColor(android.graphics.Color.WHITE);
-        title.setTypeface(null, android.graphics.Typeface.BOLD);
-        title.setPadding(0, 0, 0, dpToPx(16));
-        layout.addView(title);
+        View itemOutline = sheetView.findViewById(R.id.menuItemOutline);
+        View itemTTS = sheetView.findViewById(R.id.menuItemTTS);
+        View itemTheme = sheetView.findViewById(R.id.menuItemTheme);
+        View itemSaveOffline = sheetView.findViewById(R.id.menuItemSaveOffline);
+        View itemSiteSearch = sheetView.findViewById(R.id.menuItemSiteSearch);
+        View dividerSiteSearch = sheetView.findViewById(R.id.dividerSiteSearch);
+        TextView tvSiteSearch = sheetView.findViewById(R.id.tvSiteSearchTitle);
+        View itemReload = sheetView.findViewById(R.id.menuItemReload);
 
         String currentDomain = (currentTabIdx >= 0 && currentTabIdx < tabList.size())
                 ? extractDomain(tabList.get(currentTabIdx).currentUrl)
                 : null;
+
         if (currentDomain != null && !currentDomain.contains("duckduckgo.com")) {
-            final String domain = currentDomain;
-            addMoreOptionItem(layout, "🔍  Search on " + domain, v -> {
-                dialog.dismiss();
-                showSiteSearchDialog(domain);
-            });
+            if (tvSiteSearch != null) tvSiteSearch.setText("Search on " + currentDomain);
+            if (itemSiteSearch != null) {
+                final String domain = currentDomain;
+                itemSiteSearch.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    showSiteSearchDialog(domain);
+                });
+            }
+        } else {
+            if (itemSiteSearch != null) itemSiteSearch.setVisibility(View.GONE);
+            if (dividerSiteSearch != null) dividerSiteSearch.setVisibility(View.GONE);
         }
 
-        addMoreOptionItem(layout, "📖  Table of Contents", v -> {
-            dialog.dismiss();
-            showArticleOutline();
-        });
-
-        addMoreOptionItem(layout, "📂  Open Local .md File", v -> {
-            dialog.dismiss();
-            pickLocalMarkdownFile();
-        });
-
-        addMoreOptionItem(layout, "⭐  Save Page as .md", v -> {
-            dialog.dismiss();
-            saveCurrentPageBookmark();
-        });
-
-        addMoreOptionItem(layout, "🔖  Saved .md Documents", v -> {
-            dialog.dismiss();
-            showBookmarksSheet();
-        });
-
-        addMoreOptionItem(layout, "🗣️  Read Aloud (TTS)", v -> {
-            dialog.dismiss();
-            toggleTextToSpeech();
-        });
-
-        addMoreOptionItem(layout, "🎨  Reader Theme", v -> {
-            dialog.dismiss();
-            showThemeSelector();
-        });
-
-        addMoreOptionItem(layout, "🕒  Browsing History", v -> {
-            dialog.dismiss();
-            showHistorySheet();
-        });
-
-        addMoreOptionItem(layout, "🔄  Reload Page", v -> {
+        if (itemOutline != null) itemOutline.setOnClickListener(v -> { dialog.dismiss(); showArticleOutline(); });
+        if (itemTTS != null) itemTTS.setOnClickListener(v -> { dialog.dismiss(); toggleTextToSpeech(); });
+        if (itemTheme != null) itemTheme.setOnClickListener(v -> { dialog.dismiss(); showThemeSelector(); });
+        if (itemSaveOffline != null) itemSaveOffline.setOnClickListener(v -> { dialog.dismiss(); saveCurrentPageBookmark(); });
+        if (itemReload != null) itemReload.setOnClickListener(v -> {
             dialog.dismiss();
             if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
                 Tab tab = tabList.get(currentTabIdx);
@@ -1752,12 +2082,39 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        addMoreOptionItem(layout, "❌  Close Current Tab", v -> {
+        dialog.show();
+    }
+
+    private void showAppMenuSheet() {
+        com.google.android.material.bottomsheet.BottomSheetDialog dialog =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+        View sheetView = getLayoutInflater().inflate(R.layout.dialog_app_menu_sheet, null);
+        dialog.setContentView(sheetView);
+
+        View itemHome = sheetView.findViewById(R.id.appMenuItemHome);
+        View itemOpenMd = sheetView.findViewById(R.id.appMenuItemOpenMd);
+        View itemSavedDocs = sheetView.findViewById(R.id.appMenuItemSavedDocs);
+        View itemHistory = sheetView.findViewById(R.id.appMenuItemHistory);
+        View itemTabs = sheetView.findViewById(R.id.appMenuItemTabs);
+        View itemCloseTab = sheetView.findViewById(R.id.appMenuItemCloseTab);
+
+        if (itemHome != null) itemHome.setOnClickListener(v -> {
             dialog.dismiss();
-            closeCurrentTab();
+            if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
+                Tab tab = tabList.get(currentTabIdx);
+                tab.addHistory("home");
+                tab.markdownContent = "";
+                tab.pageTitle = "Home";
+                switchToTab(currentTabIdx);
+            }
         });
 
-        dialog.setContentView(layout);
+        if (itemOpenMd != null) itemOpenMd.setOnClickListener(v -> { dialog.dismiss(); pickLocalMarkdownFile(); });
+        if (itemSavedDocs != null) itemSavedDocs.setOnClickListener(v -> { dialog.dismiss(); showBookmarksSheet(); });
+        if (itemHistory != null) itemHistory.setOnClickListener(v -> { dialog.dismiss(); showHistorySheet(); });
+        if (itemTabs != null) itemTabs.setOnClickListener(v -> { dialog.dismiss(); showTabsSheet(); });
+        if (itemCloseTab != null) itemCloseTab.setOnClickListener(v -> { dialog.dismiss(); closeCurrentTab(); });
+
         dialog.show();
     }
 
@@ -2100,16 +2457,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateButtons() {
+        if (tvTabCount != null) {
+            tvTabCount.setText(String.valueOf(Math.max(1, tabList.size())));
+        }
         if (currentTabIdx < 0 || currentTabIdx >= tabList.size()) return;
         Tab tab = tabList.get(currentTabIdx);
         
         if (btnBack != null) {
             btnBack.setEnabled(tab.canGoBack());
-            btnBack.setAlpha(tab.canGoBack() ? 1.0f : 0.3f);
+            btnBack.setAlpha(tab.canGoBack() ? 1.0f : 0.35f);
         }
         if (btnForward != null) {
             btnForward.setEnabled(tab.canGoForward());
-            btnForward.setAlpha(tab.canGoForward() ? 1.0f : 0.3f);
+            btnForward.setAlpha(tab.canGoForward() ? 1.0f : 0.35f);
         }
     }
 
@@ -2217,5 +2577,9 @@ public class MainActivity extends AppCompatActivity {
             } catch (Exception ignored) {}
         }
         super.onDestroy();
+    }
+
+    private int dpToPx(float dp) {
+        return (int) (dp * getResources().getDisplayMetrics().density + 0.5f);
     }
 }

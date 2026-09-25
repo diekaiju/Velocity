@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#1E1E24"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="24dp">
+
+    <!-- Drag handle -->
+    <View
+        android:layout_width="36dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:background="#49454F"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Search input pill -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="54dp"
+        android:orientation="horizontal"
+        android:background="@drawable/bg_pill_search_bar"
+        android:gravity="center_vertical"
+        android:paddingStart="14dp"
+        android:paddingEnd="10dp"
+        android:layout_marginBottom="16dp">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:src="@drawable/ic_search_m3"
+            android:tint="#A8C7FA" />
+
+        <EditText
+            android:id="@+id/dialogSearchInput"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="6dp"
+            android:hint="Search or type web address..."
+            android:background="@null"
+            android:singleLine="true"
+            android:imeOptions="actionGo"
+            android:textSize="15sp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#938F99" />
+
+        <ImageButton
+            android:id="@+id/dialogBtnClear"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_close_m3"
+            android:tint="#CAC4D0"
+            android:visibility="gone" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/dialogBtnGo"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="Go"
+            android:textSize="13sp"
+            app:cornerRadius="20dp" />
+    </LinearLayout>
+
+    <!-- Quick shortcuts row -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Quick Search"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:textColor="#CAC4D0"
+        android:layout_marginBottom="8dp" />
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipDuckDuckGo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🦆 DuckDuckGo"
+                android:textColor="#FFFFFF"
+                app:chipBackgroundColor="#2B2930"
+                app:chipStrokeColor="#49454F"
+                android:layout_marginEnd="6dp"/>
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipWikipedia"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🧠 Wikipedia"
+                android:textColor="#FFFFFF"
+                app:chipBackgroundColor="#2B2930"
+                app:chipStrokeColor="#49454F"
+                android:layout_marginEnd="6dp"/>
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipHackerNews"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🔬 Hacker News"
+                android:textColor="#FFFFFF"
+                app:chipBackgroundColor="#2B2930"
+                app:chipStrokeColor="#49454F"
+                android:layout_marginEnd="6dp"/>
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipGutenberg"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📚 Gutenberg"
+                android:textColor="#FFFFFF"
+                app:chipBackgroundColor="#2B2930"
+                app:chipStrokeColor="#49454F"/>
+        </LinearLayout>
+    </HorizontalScrollView>
+</LinearLayout>

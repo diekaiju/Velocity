@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#1B1C1F"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="24dp">
+
+    <!-- Top drag handle pill matching screenshot -->
+    <View
+        android:layout_width="38dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:background="@drawable/bg_tab_badge"
+        android:backgroundTint="#4E5056"
+        android:layout_marginBottom="14dp" />
+
+    <!-- Header with Title and Clear Action -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="12dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Browsing History"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF" />
+
+        <TextView
+            android:id="@+id/btnHistoryClearAll"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="CLEAR ALL"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#FF8A80"
+            android:background="?android:attr/selectableItemBackground"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp" />
+    </LinearLayout>
+
+    <!-- Empty State Container -->
+    <LinearLayout
+        android:id="@+id/historyEmptyState"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="@drawable/bg_top_pill"
+        android:backgroundTint="#242529"
+        android:padding="24dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_history_clock"
+            android:tint="#72777F"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="No browsing history yet"
+            android:textSize="14sp"
+            android:textColor="#C1C7CE" />
+    </LinearLayout>
+
+    <!-- Obsidian/Material You scrollable card container -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/historyScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxHeight="420dp">
+
+        <LinearLayout
+            android:id="@+id/historyListContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_top_pill"
+            android:backgroundTint="#242529" />
+    </androidx.core.widget.NestedScrollView>
+
+</LinearLayout>

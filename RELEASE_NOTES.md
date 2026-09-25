@@ -1,40 +1,50 @@
-# 🚀 Velocity Browser v3.0 Release Notes
+# 🚀 Velocity Browser v4.0 Release Notes
 
 **Velocity Browser** is a 100% native Android Markdown browser built without WebView/WebKit, delivering lightning-fast, distraction-free web reading.
 
 ---
 
-## 🌟 What's New in v3.0 (Build 3)
+## 🌟 What's New in v4.0 (Build 4)
 
-### 🖼️ Image Viewing & Native SVG Support
-* **Native SVG Vector Rendering**: Added full vector graphic support via `AndroidSVG` to natively decode and render `.svg` images, logos, math formulas, and icons (e.g., on Wikipedia and GitHub).
-* **Resolved Bitmap Decoding Errors**: Fixed an issue where Wikipedia media description pages (`/wiki/File:...`) were mistakenly treated as raw images, now properly loading them as readable web pages.
-* **Corrupted Cache Prevention**: Added HTML payload detection to ensure error pages and HTML responses never corrupt the image disk cache; invalid entries are automatically cleaned.
-* **Direct Gallery Saving**: Download and save images directly to device storage / Downloads with instant MediaStore gallery indexing.
+### 🎨 Material You & Material 3 UI Redesign
+* **Floating Capsule Navigation Bars**: Rebuilt the interface with sleek, floating pill action bars inspired by modern Material 3 and Obsidian aesthetics.
+* **Scroll-Responsive Auto Hide/Show**: All top and bottom floating UI components glide away smoothly on scroll down to offer an immersive, full-screen reading experience, and reappear instantly on scroll up.
+* **Material You Dynamic Color Palette**: Swapped old accent tones for refined Material You tonal palettes (`#A8C7FA` primary blue, `#121214` true dark background, `#242529` elevated cards).
+* **Divided Dual Menu Architecture**:
+  * **Top-Right 3-Dots Menu (Page Options)**: Dedicated reading controls — Table of Contents / Outline, Text-to-Speech playback, Dynamic Themes, Offline Markdown Saving, In-page Search, and Reload.
+  * **Bottom-Right Menu (App Navigation)**: Global browser controls — Reading Hub Home, Open Local `.md` File, Saved Documents Library, Browsing History, Tab Overview, and Tab Dismissal.
 
-### 🌐 Smart Link Routing & External System Delegation
-* **Focused Native Reader**: Velocity exclusively renders web documents (`.html`, `.htm`, `.xhtml`, `.php`, `.asp`, etc.), Markdown documents (`.md`, `.markdown`), and plain text / code files (`.txt`, `.json`, `.xml`, `.csv`, source code).
-* **System Delegation**: Non-web binary and media formats (`.pdf`, `.epub`, `.doc`, `.docx`, `.xls`, `.xlsx`, `.ppt`, `.pptx`, `.zip`, `.rar`, `.7z`, `.apk`, `.mp3`, `.wav`, `.mp4`, `.mkv`, `.torrent`, etc.) and custom schemes (`mailto:`, `tel:`, `sms:`, `intent:`, `magnet:`) are automatically delegated to system applications via `Intent.ACTION_VIEW` with appropriate MIME types.
-* **Live Content-Type Detection**: Inspects server response headers during HTTP fetch; if a non-renderable stream is encountered, Velocity safely forwards it to external applications without rendering binary garbage.
+### 📋 Obsidian-Style Modal Sheets
+* **Unified Card Bottom Sheets**: Upgraded all modal sheets (Saved Documents, Browsing History, Article Outline / TOC, Theme Selector, and App Menus) to an Obsidian-inspired card layout featuring rounded containers, clean vector line icons, subtle divider lines, and tactile ripple feedback.
+* **Empty State Illustrations & Direct Deletion**: Saved Documents and History sheets now include contextual empty states and one-tap item removal.
 
-### 📑 Table of Contents & Anchor Navigation
-* **Enhanced Heading ID Extraction**: Table of contents parser now detects MediaWiki inner spans (`<span class="mw-headline" id="...">`), name attributes, and preceding anchor tags.
-* **5-Tier Anchor Resolution**: Table of Contents drawer and in-page anchor links resolve using a multi-stage cascade (URL decoding, slug normalization, heading list matching, `{#id}` tag indexing, and rendered text search) with a `-16dp` offset for smooth reading.
+### 📝 Native Text Selection & Actions
+* **Full Text Selection Support**: Enabled native long-press text selection throughout rendered Markdown articles with draggable selection handles.
+* **System Contextual Toolbar**: Access standard Android text actions (Copy, Share, Select All, Web Search) directly from any paragraph or heading without breaking link touch targets.
 
-### 📊 Advanced Table Processing & Cell Link Interaction
-* **Nested Table Unnesting**: Automatically extracts complex multi-level tables into clean standalone GFM Markdown tables with bidirectional navigation jump links (`[📊 Sub-table: ...]` and `[⬆️ Back to Main Table]`).
-* **Single-Value Table Inlining**: Detects single-cell or key-value subtables and renders them cleanly inline, eliminating unnecessary subtable generation.
-* **Interactive Table Links**: Configured `TableAwareMovementMethod` so that links inside Markdown table cells are fully responsive to touch.
+### 💾 Enhanced Offline Markdown & Storage Library
+* **Direct Saved Document Launching**: Fixed an issue where tapping saved documents from the library did not reveal the reader view.
+* **Obsidian-Compatible File Storage**: Offline articles are saved in private internal storage (`/data/user/0/com.velocity.browser/files/offline_bookmarks/{id}.md`) with standard YAML frontmatter metadata (`title`, `url`, `saved_at`) for seamless compatibility with external Markdown editors.
 
-### 🦆 DuckDuckGo Search Engine & Attribution
-* **Provider Attribution**: Added clear attribution banners (`> 🦆 These search results are provided by DuckDuckGo`) in search loading states and result pages.
-* **Cascading Fallback Engine**: Multi-endpoint search engine with automatic cascading fallback to DuckDuckGo Lite ensures uninterrupted searches without HTTP 202 throttling.
+### 📱 Adaptive Navigation & Edge-to-Edge Compatibility
+* **Edge-to-Edge System Bar Insets**: Added window inset handlers with backwards-compatible fallbacks so floating navigation capsules float above system 3-button navigation bars and gesture pill bars across all Android versions (API 21 through Android 15/16 preview).
+
+---
+
+## 🌟 Previous Releases
+
+### 📦 v3.0 (Build 3)
+* Native SVG vector decoding via `AndroidSVG`.
+* Smart link routing with system intent delegation for non-web binaries (`.pdf`, `.epub`, `.docx`, `.apk`, media).
+* 5-tier Table of Contents and anchor scroll cascade.
+* GFM sub-table extraction and inlining for complex HTML tables.
+* DuckDuckGo fallback search engine with attribution banners.
 
 ---
 
 ## 🛠️ Technical Details
-* **Version Name**: `3.0`
-* **Version Code**: `3`
+* **Version Name**: `4.0`
+* **Version Code**: `4`
 * **Compile / Target SDK**: `Android 36` (Android 16 preview / Android 15 compatible)
 * **Minimum SDK**: `21` (Android 5.0 Lollipop)
-* **Architecture**: 100% Native Android UI (TextView + Markwon Markdown rendering, QuickJS engine, Zero WebView)
+* **Architecture**: 100% Native Android UI (Markwon Markdown rendering, QuickJS engine, Zero WebView)

@@ -3,10 +3,10 @@ package com.velocity.browser.reconstruction;
 import android.graphics.Color;
 
 public enum ReaderTheme {
-    LIGHT("Light", Color.WHITE, Color.rgb(33, 33, 33), Color.rgb(103, 80, 164), Color.rgb(247, 243, 249), Color.rgb(202, 196, 206), Color.rgb(234, 221, 255), Color.rgb(103, 80, 164), Color.rgb(103, 80, 164), Color.WHITE),
+    LIGHT("Light", Color.WHITE, Color.rgb(33, 33, 33), Color.rgb(11, 87, 208), Color.rgb(240, 244, 249), Color.rgb(196, 199, 197), Color.rgb(227, 235, 248), Color.rgb(11, 87, 208), Color.rgb(11, 87, 208), Color.WHITE),
     SEPIA("Sepia", Color.rgb(251, 240, 217), Color.rgb(59, 52, 40), Color.rgb(180, 80, 20), Color.rgb(243, 230, 205), Color.rgb(225, 210, 183), Color.rgb(236, 222, 196), Color.rgb(180, 80, 20), Color.rgb(180, 80, 20), Color.WHITE),
-    OLED_DARK("OLED Dark", Color.BLACK, Color.rgb(230, 225, 229), Color.rgb(208, 188, 255), Color.rgb(28, 27, 31), Color.rgb(73, 69, 79), Color.rgb(36, 34, 40), Color.rgb(208, 188, 255), Color.rgb(208, 188, 255), Color.BLACK),
-    MATERIAL_DARK("M3 Dark", Color.rgb(28, 27, 31), Color.rgb(230, 225, 229), Color.rgb(208, 188, 255), Color.rgb(43, 41, 48), Color.rgb(73, 69, 79), Color.rgb(54, 52, 59), Color.rgb(208, 188, 255), Color.rgb(208, 188, 255), Color.rgb(56, 30, 114));
+    OLED_DARK("OLED Dark", Color.BLACK, Color.rgb(226, 226, 230), Color.rgb(168, 199, 250), Color.rgb(24, 25, 28), Color.rgb(65, 71, 77), Color.rgb(32, 34, 38), Color.rgb(168, 199, 250), Color.rgb(168, 199, 250), Color.BLACK),
+    MATERIAL_DARK("Material You Dark", Color.rgb(17, 19, 22), Color.rgb(226, 226, 230), Color.rgb(168, 199, 250), Color.rgb(33, 35, 39), Color.rgb(65, 71, 77), Color.rgb(42, 45, 50), Color.rgb(168, 199, 250), Color.rgb(168, 199, 250), Color.rgb(6, 46, 111));
 
     public final String displayName;
     public final int backgroundColor;

@@ -1,197 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="true"
-    android:background="?attr/colorSurface">
-
-
-
-    <!-- Reading Hub Home Page Container -->
-    <ScrollView
-        android:id="@+id/homePageContainer"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_below="@id/topHeaderContainer"
-        android:layout_above="@id/bottomBarContainer"
-        android:background="?attr/colorSurface"
-        android:visibility="visible">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="20dp"
-            android:gravity="center_horizontal">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="VELOCITY READER"
-                android:textSize="26sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.05"
-                android:textColor="?attr/colorPrimary"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="4dp"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Distraction-Free Native Reading Hub"
-                android:textSize="14sp"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:layout_marginBottom="24dp"/>
-
-            <!-- Search & Knowledge Bar -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:orientation="horizontal"
-                android:background="@drawable/address_bar_bg"
-                android:gravity="center_vertical"
-                android:paddingLeft="14dp"
-                android:paddingRight="10dp"
-                android:layout_marginBottom="24dp">
-
-                <ImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:src="@android:drawable/ic_menu_search"
-                    android:tint="?attr/colorOnSurfaceVariant" />
-
-                <EditText
-                    android:id="@+id/homeSearchInput"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:layout_marginLeft="8dp"
-                    android:layout_marginRight="8dp"
-                    android:hint="Search Wikipedia or Web..."
-                    android:background="@null"
-                    android:singleLine="true"
-                    android:imeOptions="actionSearch"
-                    android:textSize="15sp"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textColorHint="?attr/colorOnSurfaceVariant"/>
-
-                <ImageButton
-                    android:id="@+id/btnHomeSearchGo"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
-                    android:background="?android:attr/selectableItemBackgroundBorderless"
-                    android:src="@android:drawable/ic_menu_send"
-                    android:tint="?attr/colorPrimary" />
-            </LinearLayout>
-
-            <!-- Quick Reading Hub Categories -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Quick Topics &amp; Sources"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:textColor="?attr/colorOnSurface"
-                android:layout_marginBottom="12dp"/>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="12dp">
-
-                <Button
-                    android:id="@+id/btnCategoryWiki"
-                    style="?attr/materialButtonOutlinedStyle"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginRight="6dp"
-                    android:text="🧠 Wikipedia"
-                    android:textSize="12sp"/>
-
-                <Button
-                    android:id="@+id/btnCategoryNews"
-                    style="?attr/materialButtonOutlinedStyle"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginLeft="6dp"
-                    android:text="📰 News"
-                    android:textSize="12sp"/>
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="24dp">
-
-                <Button
-                    android:id="@+id/btnCategoryTech"
-                    style="?attr/materialButtonOutlinedStyle"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginRight="6dp"
-                    android:text="🔬 Tech &amp; Science"
-                    android:textSize="12sp"/>
-
-                <Button
-                    android:id="@+id/btnCategoryBooks"
-                    style="?attr/materialButtonOutlinedStyle"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginLeft="6dp"
-                    android:text="📚 Gutenberg Books"
-                    android:textSize="12sp"/>
-            </LinearLayout>
-
-            <!-- Offline Library / Bookmarks Quick Section -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Reading Library"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:textColor="?attr/colorOnSurface"
-                android:layout_marginBottom="12dp"/>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/btnHomeBookmarks"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginRight="4dp"
-                    android:text="⭐ Saved MDs"
-                    android:textSize="12sp"/>
-
-                <Button
-                    android:id="@+id/btnOpenMarkdownFile"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginLeft="4dp"
-                    android:layout_marginRight="4dp"
-                    android:text="📂 Open .md"
-                    android:textSize="12sp"/>
-
-                <Button
-                    android:id="@+id/btnHomeHistory"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginLeft="4dp"
-                    android:text="🕒 History"
-                    android:textSize="12sp"/>
-            </LinearLayout>
-        </LinearLayout>
-    </ScrollView>
+    android:background="#121214">
 
     <!-- Scrollable Native Markdown Page Layout Container -->
     <androidx.core.widget.NestedScrollView
@@ -200,12 +12,12 @@
         android:layout_height="match_parent"
         android:layout_alignParentTop="true"
         android:layout_alignParentBottom="true"
-        android:paddingLeft="16dp"
-        android:paddingRight="16dp"
-        android:paddingTop="12dp"
-        android:paddingBottom="72dp"
+        android:paddingLeft="18dp"
+        android:paddingRight="18dp"
+        android:paddingTop="76dp"
+        android:paddingBottom="96dp"
         android:clipToPadding="false"
-        android:background="#FFFFFF"
+        android:background="#121214"
         android:visibility="gone">
 
         <LinearLayout
@@ -218,174 +30,427 @@
                 android:id="@+id/markdownTextView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="?attr/colorOnSurface"
+                android:textColor="#E6E1E5"
                 android:textSize="16sp"
-                android:lineSpacingMultiplier="1.3" />
+                android:lineSpacingMultiplier="1.35"
+                android:textIsSelectable="true" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- Header Container (Top Bar + Progress Bar + Tab Bar) -->
+    <!-- Reading Hub Home Page Container -->
+    <ScrollView
+        android:id="@+id/homePageContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentBottom="true"
+        android:paddingTop="76dp"
+        android:paddingBottom="96dp"
+        android:clipToPadding="false"
+        android:background="#121214"
+        android:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp"
+            android:gravity="center_horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="VELOCITY"
+                android:textSize="30sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.08"
+                android:textColor="#A8C7FA"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="4dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Fast • Distraction-Free • Native Reader"
+                android:textSize="13sp"
+                android:textColor="#CAC4D0"
+                android:layout_marginBottom="28dp"/>
+
+            <!-- Search & Knowledge Pill -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="54dp"
+                android:orientation="horizontal"
+                android:background="@drawable/bg_pill_search_bar"
+                android:gravity="center_vertical"
+                android:paddingLeft="16dp"
+                android:paddingRight="12dp"
+                android:layout_marginBottom="28dp"
+                android:elevation="4dp">
+
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:src="@drawable/ic_search_m3"
+                    android:tint="#A8C7FA" />
+
+                <EditText
+                    android:id="@+id/homeSearchInput"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:layout_marginLeft="12dp"
+                    android:layout_marginRight="8dp"
+                    android:hint="Search Wikipedia or Web..."
+                    android:background="@null"
+                    android:singleLine="true"
+                    android:imeOptions="actionSearch"
+                    android:textSize="15sp"
+                    android:textColor="#FFFFFF"
+                    android:textColorHint="#938F99"/>
+
+                <ImageButton
+                    android:id="@+id/btnHomeSearchGo"
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_chevron_right"
+                    android:tint="#A8C7FA" />
+            </LinearLayout>
+
+            <!-- Quick Reading Hub Categories -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Quick Topics &amp; Sources"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="#E6E1E5"
+                android:layout_marginBottom="12dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="10dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnCategoryWiki"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="6dp"
+                    android:text="🧠 Wikipedia"
+                    android:textSize="12sp"
+                    app:cornerRadius="16dp"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnCategoryNews"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    android:text="📰 News"
+                    android:textSize="12sp"
+                    app:cornerRadius="16dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="24dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnCategoryTech"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="6dp"
+                    android:text="🔬 Tech &amp; Science"
+                    android:textSize="12sp"
+                    app:cornerRadius="16dp"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnCategoryBooks"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    android:text="📚 Gutenberg Books"
+                    android:textSize="12sp"
+                    app:cornerRadius="16dp"/>
+            </LinearLayout>
+
+            <!-- Offline Library / Bookmarks Quick Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Reading Library"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="#E6E1E5"
+                android:layout_marginBottom="12dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnHomeBookmarks"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="4dp"
+                    android:text="⭐ Saved MDs"
+                    android:textSize="11sp"
+                    app:cornerRadius="16dp"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnOpenMarkdownFile"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginEnd="4dp"
+                    android:text="📂 Open .md"
+                    android:textSize="11sp"
+                    app:cornerRadius="16dp"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnHomeHistory"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="4dp"
+                    android:text="🕒 History"
+                    android:textSize="11sp"
+                    app:cornerRadius="16dp"/>
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Top Header Container (Floating Top Action Pills + Linear Progress Bar) -->
     <LinearLayout
         android:id="@+id/topHeaderContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
-        android:orientation="vertical">
-
-        <!-- Top Bar / Modern Search Bar Container -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:paddingLeft="12dp"
-            android:paddingRight="12dp"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp"
-            android:background="?attr/colorSurface"
-            android:gravity="center_vertical">
-
-            <!-- Modern Rounded Address Bar -->
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:orientation="horizontal"
-                android:background="@drawable/address_bar_bg"
-                android:gravity="center_vertical"
-                android:paddingLeft="12dp"
-                android:paddingRight="8dp">
-
-                <!-- Search Icon -->
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@android:drawable/ic_menu_search"
-                    android:tint="?attr/colorOnSurfaceVariant"
-                    android:contentDescription="Search Icon" />
-
-                <!-- Input Field -->
-                <EditText
-                    android:id="@+id/urlInput"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:layout_marginLeft="8dp"
-                    android:layout_marginRight="8dp"
-                    android:hint="Search or type URL"
-                    android:background="@null"
-                    android:singleLine="true"
-                    android:imeOptions="actionGo"
-                    android:textSize="15sp"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textColorHint="?attr/colorOnSurfaceVariant"/>
-
-                <!-- Go / Navigation Button -->
-                <ImageButton
-                    android:id="@+id/btnGo"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:src="@android:drawable/ic_menu_send"
-                    android:background="?android:attr/selectableItemBackgroundBorderless"
-                    android:tint="?attr/colorOnSurface"
-                    android:contentDescription="Go" />
-            </LinearLayout>
-        </LinearLayout>
+        android:orientation="vertical"
+        android:paddingTop="0dp">
 
         <ProgressBar
             android:id="@+id/progressBar"
             style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
-            android:layout_height="4dp"
+            android:layout_height="3dp"
             android:visibility="gone"
-            android:progressTint="?attr/colorPrimary"/>
+            android:progressTint="#A8C7FA"/>
 
-        <!-- Tab Bar -->
-        <HorizontalScrollView
+        <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="44dp"
-            android:background="?attr/colorSurfaceContainer"
-            android:scrollbars="none">
-            
+            android:layout_height="wrap_content"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp">
+
+            <!-- Top Left Pill: Tabs Button (matching screenshot) -->
+            <FrameLayout
+                android:id="@+id/btnTopTabs"
+                android:layout_width="48dp"
+                android:layout_height="44dp"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:background="@drawable/bg_top_pill"
+                android:clickable="true"
+                android:focusable="true"
+                android:elevation="4dp">
+
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_tabs_square"
+                    android:contentDescription="Open Tabs" />
+            </FrameLayout>
+
+            <!-- Top Right Pill: Reader/Outline & More Options (matching screenshot) -->
             <LinearLayout
-                android:id="@+id/tabContainer"
+                android:id="@+id/topRightPillContainer"
                 android:layout_width="wrap_content"
-                android:layout_height="match_parent"
+                android:layout_height="44dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:background="@drawable/bg_top_pill"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"/>
-        </HorizontalScrollView>
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                android:elevation="4dp">
+
+                <ImageButton
+                    android:id="@+id/btnOutline"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:src="@drawable/ic_book_reader"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:tint="#FFFFFF"
+                    android:contentDescription="Article Outline / Reader" />
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="18dp"
+                    android:background="#3A3A42"
+                    android:layout_marginStart="2dp"
+                    android:layout_marginEnd="2dp" />
+
+                <ImageButton
+                    android:id="@+id/btnMore"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:src="@drawable/ic_more_vert"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:tint="#FFFFFF"
+                    android:contentDescription="More Options" />
+            </LinearLayout>
+        </RelativeLayout>
+
+        <!-- Hidden legacy views referenced in code for safety -->
+        <EditText
+            android:id="@+id/urlInput"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"/>
+
+        <ImageButton
+            android:id="@+id/btnGo"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"/>
+
+        <LinearLayout
+            android:id="@+id/tabContainer"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"/>
     </LinearLayout>
 
-    <!-- Material 3 Bottom Action Controls -->
+    <!-- Material 3 Floating Bottom Pill Navigation Bar (Matching Screenshot) -->
     <LinearLayout
         android:id="@+id/bottomBarContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
         android:orientation="horizontal"
-        android:background="?attr/colorSurfaceVariant"
-        android:padding="4dp"
-        android:gravity="center_vertical">
+        android:gravity="center">
 
-        <ImageButton
-            android:id="@+id/btnBack"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:src="@android:drawable/ic_media_previous"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:tint="?attr/colorOnSurface"
-            android:contentDescription="Back" />
+        <!-- Floating Capsule Bar -->
+        <LinearLayout
+            android:id="@+id/floatingBarContent"
+            android:layout_width="match_parent"
+            android:layout_height="58dp"
+            android:orientation="horizontal"
+            android:background="@drawable/bg_floating_bar"
+            android:gravity="center_vertical"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:elevation="8dp">
 
-        <ImageButton
-            android:id="@+id/btnForward"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:src="@android:drawable/ic_media_next"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:tint="?attr/colorOnSurface"
-            android:contentDescription="Forward" />
+            <!-- 1. Back Button -->
+            <ImageButton
+                android:id="@+id/btnBack"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:src="@drawable/ic_chevron_left"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:tint="#FFFFFF"
+                android:contentDescription="Back" />
 
-        <ImageButton
-            android:id="@+id/btnOutline"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:src="@android:drawable/ic_menu_sort_by_size"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:tint="?attr/colorPrimary"
-            android:contentDescription="Article Outline / Table of Contents" />
+            <!-- 2. Forward Button -->
+            <ImageButton
+                android:id="@+id/btnForward"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:src="@drawable/ic_chevron_right"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:tint="#FFFFFF"
+                android:contentDescription="Forward" />
 
-        <ImageButton
-            android:id="@+id/btnHome"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:src="@android:drawable/ic_menu_info_details"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:tint="?attr/colorOnSurface"
-            android:contentDescription="Home" />
+            <!-- 3. Search / URL Button -->
+            <ImageButton
+                android:id="@+id/btnSearch"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:src="@drawable/ic_search_m3"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:tint="#FFFFFF"
+                android:contentDescription="Search or Type URL" />
 
-        <ImageButton
-            android:id="@+id/btnNewTab"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:src="@android:drawable/ic_menu_add"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:tint="?attr/colorOnSurface"
-            android:contentDescription="New Tab" />
+            <!-- 4. New Tab Button (+) -->
+            <ImageButton
+                android:id="@+id/btnNewTab"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:src="@drawable/ic_add_m3"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:tint="#FFFFFF"
+                android:contentDescription="New Tab" />
 
-        <ImageButton
-            android:id="@+id/btnMore"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:src="@android:drawable/ic_menu_more"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:tint="?attr/colorPrimary"
-            android:contentDescription="More Options" />
+            <!-- 5. Tab Switcher Badge Button ([N]) -->
+            <FrameLayout
+                android:id="@+id/btnTabs"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true">
+
+                <FrameLayout
+                    android:layout_width="23dp"
+                    android:layout_height="23dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_tab_badge">
+
+                    <TextView
+                        android:id="@+id/tvTabCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:text="1"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF" />
+                </FrameLayout>
+            </FrameLayout>
+
+            <!-- 6. Menu / Hamburger Button (☰) -->
+            <ImageButton
+                android:id="@+id/btnMenu"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:src="@drawable/ic_menu_hamburger"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:tint="#FFFFFF"
+                android:contentDescription="Menu" />
+        </LinearLayout>
     </LinearLayout>
+
 </RelativeLayout>

@@ -1,14 +1,22 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.Browser" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">#1976D2</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="colorPrimaryContainer">#E3F2FD</item>
-        <item name="colorOnPrimaryContainer">#0D47A1</item>
-        <item name="colorSurface">#F8F9FA</item>
-        <item name="colorOnSurface">#1C1B1F</item>
-        <item name="colorSurfaceVariant">#E1E3E1</item>
-        <item name="colorOnSurfaceVariant">#444746</item>
+        <!-- Material You Dynamic Slate-Blue & Neutral Palette -->
+        <item name="colorPrimary">#A8C7FA</item>
+        <item name="colorOnPrimary">#062E6F</item>
+        <item name="colorPrimaryContainer">#0842A0</item>
+        <item name="colorOnPrimaryContainer">#D3E3FD</item>
+        <item name="colorSecondary">#BAC7DB</item>
+        <item name="colorOnSecondary">#243140</item>
+        <item name="colorSecondaryContainer">#3B4858</item>
+        <item name="colorOnSecondaryContainer">#D7E3F8</item>
+        <item name="colorSurface">#111316</item>
+        <item name="colorOnSurface">#E2E2E6</item>
+        <item name="colorSurfaceVariant">#41474D</item>
+        <item name="colorOnSurfaceVariant">#C1C7CE</item>
+        <item name="colorOutline">#8B9198</item>
+        <item name="colorOutlineVariant">#363B40</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
     </style>
 </resources>
