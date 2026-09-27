@@ -1681,6 +1681,8 @@ public class MainActivity extends AppCompatActivity {
                 ? tab.markdownContent
                 : "# " + tab.pageTitle + "\n\n*No content available.*";
 
+        String renderedMd = MathSymbolConverter.convertMathInMarkdown(md);
+
         tab.anchorMap.clear();
 
         markdownTextView.setMovementMethod(io.noties.markwon.ext.tables.TableAwareMovementMethod.create());
@@ -1699,7 +1701,7 @@ public class MainActivity extends AppCompatActivity {
                 tab.anchorMap
         );
 
-        markwon.setMarkdown(markdownTextView, md);
+        markwon.setMarkdown(markdownTextView, renderedMd);
         markdownTextView.setTextIsSelectable(true);
     }
 

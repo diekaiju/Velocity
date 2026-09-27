@@ -192,6 +192,7 @@ public final class HtmlCleaner {
     }
 
     private static void removeJavaScript(Document document) {
+        cleanAndNormalizeMathElements(document);
         document.select("script, noscript, template").remove();
         for (Element element : document.select("[href], [src], [action]")) {
             if (isJavascriptUrl(element.attr("href"))) {
@@ -202,6 +203,82 @@ public final class HtmlCleaner {
             }
             if (isJavascriptUrl(element.attr("action"))) {
                 element.removeAttr("action");
+            }
+        }
+    }
+
+    private static void cleanAndNormalizeMathElements(Document document) {
+        // 1. Remove duplicate MathJax preview placeholders and assistive hidden math
+        document.select(".MathJax_Preview, .MJX_Assistive_MathML, .MathJax_Message, #MathJax_Message").remove();
+
+        // 2. KaTeX deduplication: extract from annotation/mathml, remove katex-html duplicate visual layer
+        for (Element katex : new ArrayList<>(document.select(".katex"))) {
+            Element annotation = katex.selectFirst("annotation[encoding*='tex'], annotation[encoding*='latex']");
+            String tex = "";
+            if (annotation != null) {
+                tex = annotation.text().trim();
+            } else {
+                Element mathml = katex.selectFirst(".katex-mathml");
+                if (mathml != null) {
+                    tex = mathml.text().trim();
+                } else {
+                    tex = katex.text().trim();
+                }
+            }
+            if (!tex.isEmpty()) {
+                Element span = new Element("span");
+                span.addClass("math-formula");
+                span.text(" $" + tex + "$ ");
+                katex.replaceWith(span);
+            } else {
+                katex.remove();
+            }
+        }
+
+        // 3. MathJax deduplication: extract from script tags and remove matching duplicate MathJax visual containers
+        for (Element mathScript : new ArrayList<>(document.select("script[type*='math'], script[type*='tex']"))) {
+            String math = mathScript.data();
+            if (math == null || math.trim().isEmpty()) {
+                math = mathScript.text();
+            }
+            String scriptId = mathScript.id();
+            if (!scriptId.isEmpty()) {
+                document.select("#" + scriptId + "-Frame").remove();
+                document.select("#" + scriptId + "-Warning").remove();
+            }
+            Element prev = mathScript.previousElementSibling();
+            if (prev != null && (prev.hasClass("MathJax") || prev.hasClass("MathJax_Display") || prev.hasClass("MathJax_Preview"))) {
+                prev.remove();
+            }
+
+            if (math != null && !math.trim().isEmpty()) {
+                String type = mathScript.attr("type");
+                boolean isDisplay = type.contains("mode=display") || type.contains("display");
+                Element span = new Element("span");
+                span.addClass("math-formula");
+                span.text(isDisplay ? " \n\n$$\n" + math.trim() + "\n$$\n\n " : " $" + math.trim() + "$ ");
+                mathScript.replaceWith(span);
+            } else {
+                mathScript.remove();
+            }
+        }
+
+        // 4. Any remaining MathJax container elements (if scripts were not present)
+        for (Element mathJax : new ArrayList<>(document.select(".MathJax, .MathJax_Display"))) {
+            String math = "";
+            if (mathJax.hasAttr("data-mathml")) {
+                math = mathJax.attr("data-mathml");
+            } else if (mathJax.hasAttr("alt")) {
+                math = mathJax.attr("alt");
+            } else {
+                math = mathJax.text().trim();
+            }
+            if (!math.isEmpty()) {
+                boolean isDisplay = mathJax.hasClass("MathJax_Display");
+                Element span = new Element("span");
+                span.addClass("math-formula");
+                span.text(isDisplay ? " \n\n$$\n" + math + "\n$$\n\n " : " $" + math + "$ ");
+                mathJax.replaceWith(span);
             }
         }
     }
