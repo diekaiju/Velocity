@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/documentsDrawerContainer"
+    android:layout_width="320dp"
+    android:layout_height="match_parent"
+    android:layout_gravity="start"
+    android:background="#16161A"
+    android:orientation="vertical"
+    android:clickable="true"
+    android:focusable="true">
+
+    <!-- Top Status / Header Search Area -->
+    <LinearLayout
+        android:id="@+id/drawerHeaderContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingTop="36dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_drawer_selected_item"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_search_m3"
+                android:tint="#8E8E93" />
+
+            <EditText
+                android:id="@+id/etDrawerSearch"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:background="@null"
+                android:hint="Search documents..."
+                android:textColor="#FFFFFF"
+                android:textColorHint="#6C6C75"
+                android:textSize="13.5sp"
+                android:singleLine="true"
+                android:imeOptions="actionDone" />
+
+            <ImageButton
+                android:id="@+id/btnDrawerClearSearch"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_close_m3"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:tint="#8E8E93"
+                android:visibility="gone" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Tree View (Files and Folders) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvDrawerTree"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingTop="4dp"
+        android:paddingBottom="12dp"
+        android:scrollbars="vertical" />
+
+    <!-- Empty State View -->
+    <TextView
+        android:id="@+id/tvDrawerEmpty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:text="No saved documents yet\nTap [+] below or Save offline"
+        android:textColor="#6C6C75"
+        android:textSize="13sp"
+        android:lineSpacingExtra="4dp"
+        android:visibility="gone" />
+
+    <!-- Obsidian Style Quick Action Toolbar (Row above footer) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:background="#16161A">
+
+        <ImageButton
+            android:id="@+id/btnDrawerNewNote"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:src="@drawable/ic_note_add"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="#CAC4D0"
+            android:contentDescription="New Note / From Link" />
+
+        <ImageButton
+            android:id="@+id/btnDrawerNewFolder"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_marginStart="8dp"
+            android:src="@drawable/ic_folder_new"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="#CAC4D0"
+            android:contentDescription="New Folder" />
+
+        <ImageButton
+            android:id="@+id/btnDrawerSort"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_marginStart="8dp"
+            android:src="@drawable/ic_sort_az"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="#CAC4D0"
+            android:contentDescription="Sort Order" />
+
+        <ImageButton
+            android:id="@+id/btnDrawerCollapseAll"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_marginStart="8dp"
+            android:src="@drawable/ic_collapse_all"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="#CAC4D0"
+            android:contentDescription="Collapse All" />
+    </LinearLayout>
+
+    <!-- Obsidian Style Footer Section -->
+    <LinearLayout
+        android:id="@+id/drawerFooterContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="48dp"
+        android:background="#16161A">
+
+        <!-- Vault / Documents Title & Settings Bar -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <LinearLayout
+                android:id="@+id/layoutVaultTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:clickable="true"
+                android:focusable="true">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/tvVaultName"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Documents"
+                        android:textColor="#FFFFFF"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_chevron_down"
+                        android:tint="#8E8E93"
+                        android:layout_marginStart="4dp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvVaultStats"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0 files, 0 folders"
+                    android:textColor="#8E8E93"
+                    android:textSize="12sp"
+                    android:layout_marginTop="2dp" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/btnDrawerSettings"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_settings_gear"
+                android:background="@drawable/bg_drawer_circle_btn"
+                android:tint="#FFFFFF"
+                android:contentDescription="Vault Settings" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,9 +1,16 @@
-<?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#121214">
+
+    <!-- Main Content Root Container -->
+    <RelativeLayout
+        android:id="@+id/mainContentContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#121214">
 
     <!-- Scrollable Native Markdown Page Layout Container -->
     <androidx.core.widget.NestedScrollView
@@ -263,7 +270,7 @@
             android:paddingTop="6dp"
             android:paddingBottom="6dp">
 
-            <!-- Top Left Pill: Tabs Button (matching screenshot) -->
+            <!-- Top Left Pill: Obsidian Documents Slider Button -->
             <FrameLayout
                 android:id="@+id/btnTopTabs"
                 android:layout_width="48dp"
@@ -276,11 +283,13 @@
                 android:elevation="4dp">
 
                 <ImageView
+                    android:id="@+id/ivTopSliderIcon"
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:layout_gravity="center"
-                    android:src="@drawable/ic_tabs_square"
-                    android:contentDescription="Open Tabs" />
+                    android:src="@drawable/ic_view_sidebar"
+                    android:tint="#FFFFFF"
+                    android:contentDescription="Documents &amp; Folders" />
             </FrameLayout>
 
             <!-- Top Right Pill: Reader/Outline & More Options (matching screenshot) -->
@@ -453,4 +462,13 @@
         </LinearLayout>
     </LinearLayout>
 
-</RelativeLayout>
+    </RelativeLayout>
+
+    <!-- Obsidian Documents Slider Navigation Drawer -->
+    <include
+        layout="@layout/layout_documents_drawer"
+        android:layout_width="320dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start" />
+
+</androidx.drawerlayout.widget.DrawerLayout>

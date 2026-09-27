@@ -83,25 +83,6 @@ public class BookmarkManager {
             SharedPreferences pref = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
             pref.edit().putString(KEY_BOOKMARKS, array.toString()).apply();
 
-            if (markdownContent != null && !markdownContent.isEmpty()) {
-                File dir = new File(context.getFilesDir(), "offline_bookmarks");
-                if (!dir.exists()) dir.mkdirs();
-
-                // Save as .md file with metadata frontmatter
-                File file = new File(dir, id + ".md");
-                StringBuilder fileContent = new StringBuilder();
-                fileContent.append("---\n");
-                fileContent.append("title: ").append(title != null ? title.replace("\n", " ") : "Untitled").append("\n");
-                fileContent.append("url: ").append(url).append("\n");
-                fileContent.append("saved_at: ").append(System.currentTimeMillis()).append("\n");
-                fileContent.append("---\n\n");
-                fileContent.append(markdownContent);
-
-                try (FileOutputStream out = new FileOutputStream(file)) {
-                    out.write(fileContent.toString().getBytes(StandardCharsets.UTF_8));
-                }
-            }
-
             return true;
         } catch (Exception e) {
             return false;

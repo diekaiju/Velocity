@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="2dp"
+    android:paddingBottom="2dp">
+
+    <View
+        android:id="@+id/viewFileIndent"
+        android:layout_width="0dp"
+        android:layout_height="1dp" />
+
+    <!-- File Item Container (Pill Highlight when active) -->
+    <LinearLayout
+        android:id="@+id/layoutFileContainer"
+        android:layout_width="match_parent"
+        android:layout_height="38dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_drawer_selected_item"
+        android:paddingStart="10dp"
+        android:paddingEnd="6dp"
+        android:clickable="true"
+        android:focusable="true">
+
+        <TextView
+            android:id="@+id/tvFileName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="#E6E1E5"
+            android:textSize="14sp"
+            android:singleLine="true"
+            android:ellipsize="end"
+            tools:text="Combinators" />
+
+        <TextView
+            android:id="@+id/tvFileBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="MD"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:textColor="#7A7A85"
+            android:paddingStart="5dp"
+            android:paddingEnd="5dp"
+            android:paddingTop="1dp"
+            android:paddingBottom="1dp"
+            android:layout_marginEnd="4dp"
+            android:visibility="gone" />
+
+        <ImageButton
+            android:id="@+id/btnFileMore"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@drawable/ic_more_vert"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="#8E8E93"
+            android:contentDescription="File options" />
+    </LinearLayout>
+</LinearLayout>

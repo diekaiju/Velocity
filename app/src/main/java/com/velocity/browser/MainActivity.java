@@ -20,6 +20,13 @@ import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
 import android.graphics.drawable.GradientDrawable;
+import android.text.Editable;
+import android.text.TextWatcher;
+
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.velocity.browser.reconstruction.ReaderTheme;
 
@@ -196,6 +203,17 @@ public class MainActivity extends AppCompatActivity {
     private ImageButton btnSearch;
     private ImageButton btnMenu;
 
+    private DrawerLayout drawerLayout;
+    private RecyclerView rvDrawerTree;
+    private DocumentTreeAdapter documentTreeAdapter;
+    private DocumentManager.SortOrder currentSortOrder = DocumentManager.SortOrder.NAME_ASC;
+    private File currentActiveDocumentFile = null;
+    private File currentSelectedFolder = null;
+    private EditText etDrawerSearch;
+    private TextView tvVaultStats;
+    private TextView tvVaultName;
+    private View tvDrawerEmpty;
+
     private List<Tab> tabList = new ArrayList<>();
     private int currentTabIdx = -1;
     
@@ -235,6 +253,15 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().setNavigationBarColor(android.graphics.Color.parseColor("#121214"));
+            getWindow().setStatusBarColor(android.graphics.Color.parseColor("#121214"));
+        }
+        androidx.core.view.WindowInsetsControllerCompat insetsController =
+                new androidx.core.view.WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
+        insetsController.setAppearanceLightStatusBars(false);
+        insetsController.setAppearanceLightNavigationBars(false);
+
         // Activity Result Launcher for opening local .md files
         openMarkdownFileLauncher = registerForActivityResult(
                 new ActivityResultContracts.OpenDocument(),
@@ -248,6 +275,10 @@ public class MainActivity extends AppCompatActivity {
         getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
+                if (drawerLayout != null && drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                    drawerLayout.closeDrawer(GravityCompat.START);
+                    return;
+                }
                 if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
                     Tab tab = tabList.get(currentTabIdx);
                     if (tab.canGoBack()) {
@@ -421,7 +452,7 @@ public class MainActivity extends AppCompatActivity {
             btnMore.setOnClickListener(v -> showPageOptionsSheet());
         }
         if (btnTopTabs != null) {
-            btnTopTabs.setOnClickListener(v -> showTabsSheet());
+            btnTopTabs.setOnClickListener(v -> toggleDocumentsDrawer());
         }
         if (btnTabs != null) {
             btnTabs.setOnClickListener(v -> showTabsSheet());
@@ -433,6 +464,7 @@ public class MainActivity extends AppCompatActivity {
             btnMenu.setOnClickListener(v -> showAppMenuSheet());
         }
 
+        initDocumentsDrawer();
         setupListeners();
 
         // Check for incoming intent
@@ -517,7 +549,7 @@ public class MainActivity extends AppCompatActivity {
         if (btnCategoryTech != null) btnCategoryTech.setOnClickListener(v -> loadUrl("https://news.ycombinator.com/", true));
         if (btnCategoryBooks != null) btnCategoryBooks.setOnClickListener(v -> loadUrl("https://gutenberg.org/", true));
 
-        if (btnHomeBookmarks != null) btnHomeBookmarks.setOnClickListener(v -> showBookmarksSheet());
+        if (btnHomeBookmarks != null) btnHomeBookmarks.setOnClickListener(v -> openDocumentsDrawer());
         if (btnOpenMarkdownFile != null) btnOpenMarkdownFile.setOnClickListener(v -> pickLocalMarkdownFile());
         if (btnHomeHistory != null) btnHomeHistory.setOnClickListener(v -> showHistorySheet());
 
@@ -1774,12 +1806,662 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         String md = tab.markdownContent != null ? tab.markdownContent : "";
-        boolean saved = BookmarkManager.saveBookmark(this, tab.pageTitle, tab.currentUrl, md);
-        if (saved) {
-            Toast.makeText(this, "Saved as offline .md document!", Toast.LENGTH_SHORT).show();
+        File savedFile = DocumentManager.saveDocument(this, currentSelectedFolder, tab.pageTitle, tab.currentUrl, md);
+        BookmarkManager.saveBookmark(this, tab.pageTitle, tab.currentUrl, md);
+        if (savedFile != null) {
+            currentActiveDocumentFile = savedFile;
+            refreshDocumentsDrawer();
+            Toast.makeText(this, "Saved: " + savedFile.getName(), Toast.LENGTH_SHORT).show();
         } else {
-            Toast.makeText(this, "Failed to save .md document", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Failed to save document", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    // ==========================================
+    // Obsidian Documents Slider Drawer System
+    // ==========================================
+
+    private void initDocumentsDrawer() {
+        drawerLayout = findViewById(R.id.drawerLayout);
+        rvDrawerTree = findViewById(R.id.rvDrawerTree);
+        etDrawerSearch = findViewById(R.id.etDrawerSearch);
+        tvVaultStats = findViewById(R.id.tvVaultStats);
+        tvVaultName = findViewById(R.id.tvVaultName);
+        tvDrawerEmpty = findViewById(R.id.tvDrawerEmpty);
+
+        View documentsDrawerContainer = findViewById(R.id.documentsDrawerContainer);
+        View drawerHeaderContainer = findViewById(R.id.drawerHeaderContainer);
+        View drawerFooterContainer = findViewById(R.id.drawerFooterContainer);
+
+        if (documentsDrawerContainer != null) {
+            androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(documentsDrawerContainer, (v, windowInsets) -> {
+                androidx.core.graphics.Insets insets = windowInsets.getInsets(
+                        androidx.core.view.WindowInsetsCompat.Type.systemBars()
+                );
+                if (drawerHeaderContainer != null) {
+                    drawerHeaderContainer.setPadding(dpToPx(16), insets.top + dpToPx(8), dpToPx(16), dpToPx(8));
+                }
+                if (drawerFooterContainer != null) {
+                    drawerFooterContainer.setPadding(dpToPx(16), dpToPx(6), dpToPx(16), insets.bottom + dpToPx(16));
+                }
+                return windowInsets;
+            });
+        }
+
+        View btnDrawerClearSearch = findViewById(R.id.btnDrawerClearSearch);
+        View btnDrawerNewNote = findViewById(R.id.btnDrawerNewNote);
+        View btnDrawerNewFolder = findViewById(R.id.btnDrawerNewFolder);
+        View btnDrawerSort = findViewById(R.id.btnDrawerSort);
+        View btnDrawerCollapseAll = findViewById(R.id.btnDrawerCollapseAll);
+        View btnDrawerSettings = findViewById(R.id.btnDrawerSettings);
+        View layoutVaultTitle = findViewById(R.id.layoutVaultTitle);
+
+        if (rvDrawerTree != null) {
+            rvDrawerTree.setLayoutManager(new LinearLayoutManager(this));
+            documentTreeAdapter = new DocumentTreeAdapter(this, new DocumentTreeAdapter.OnItemInteractionListener() {
+                @Override
+                public void onFileClicked(DocumentManager.DocItem item) {
+                    openLocalDocumentFile(item.file);
+                }
+
+                @Override
+                public void onFileOptions(DocumentManager.DocItem item, View anchor) {
+                    showFileOptionsMenu(item, anchor);
+                }
+
+                @Override
+                public void onFolderOptions(DocumentManager.DocItem item, View anchor) {
+                    showFolderOptionsMenu(item, anchor);
+                }
+
+                @Override
+                public void onFolderToggled(DocumentManager.DocItem item, boolean isExpanded) {
+                    if (isExpanded) {
+                        currentSelectedFolder = item.file;
+                    }
+                }
+            });
+            rvDrawerTree.setAdapter(documentTreeAdapter);
+        }
+
+        if (etDrawerSearch != null) {
+            etDrawerSearch.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    String q = s.toString();
+                    if (btnDrawerClearSearch != null) {
+                        btnDrawerClearSearch.setVisibility(q.isEmpty() ? View.GONE : View.VISIBLE);
+                    }
+                    if (documentTreeAdapter != null) {
+                        documentTreeAdapter.setSearchQuery(q);
+                    }
+                }
+
+                @Override
+                public void afterTextChanged(Editable s) {}
+            });
+        }
+
+        if (btnDrawerClearSearch != null) {
+            btnDrawerClearSearch.setOnClickListener(v -> {
+                if (etDrawerSearch != null) etDrawerSearch.setText("");
+            });
+        }
+
+        if (btnDrawerNewNote != null) {
+            btnDrawerNewNote.setOnClickListener(v -> showCreateNoteDialog(currentSelectedFolder));
+        }
+
+        if (btnDrawerNewFolder != null) {
+            btnDrawerNewFolder.setOnClickListener(v -> showCreateFolderDialog(currentSelectedFolder));
+        }
+
+        if (btnDrawerSort != null) {
+            btnDrawerSort.setOnClickListener(this::showSortOrderPicker);
+        }
+
+        if (btnDrawerCollapseAll != null) {
+            btnDrawerCollapseAll.setOnClickListener(v -> {
+                if (documentTreeAdapter != null) {
+                    documentTreeAdapter.collapseAll();
+                    Toast.makeText(MainActivity.this, "Collapsed all folders", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+
+        if (btnDrawerSettings != null) {
+            btnDrawerSettings.setOnClickListener(v -> showVaultSettingsDialog());
+        }
+
+        if (layoutVaultTitle != null) {
+            layoutVaultTitle.setOnClickListener(v -> showVaultSettingsDialog());
+        }
+
+        refreshDocumentsDrawer();
+    }
+
+    public void toggleDocumentsDrawer() {
+        if (drawerLayout == null) return;
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START);
+        } else {
+            refreshDocumentsDrawer();
+            drawerLayout.openDrawer(GravityCompat.START);
+        }
+    }
+
+    public void openDocumentsDrawer() {
+        if (drawerLayout == null) return;
+        refreshDocumentsDrawer();
+        drawerLayout.openDrawer(GravityCompat.START);
+    }
+
+    private void refreshDocumentsDrawer() {
+        executor.execute(() -> {
+            List<DocumentManager.DocItem> tree = DocumentManager.getDocumentTree(MainActivity.this, currentSortOrder);
+            DocumentManager.LibraryStats stats = DocumentManager.getStats(MainActivity.this);
+
+            runOnUiThread(() -> {
+                if (documentTreeAdapter != null) {
+                    documentTreeAdapter.setData(tree);
+                    if (currentActiveDocumentFile != null) {
+                        documentTreeAdapter.setSelectedFile(currentActiveDocumentFile);
+                    }
+                }
+                if (tvVaultStats != null) {
+                    tvVaultStats.setText(stats.fileCount + " files, " + stats.folderCount + " folders");
+                }
+                if (tvDrawerEmpty != null) {
+                    tvDrawerEmpty.setVisibility(tree.isEmpty() ? View.VISIBLE : View.GONE);
+                }
+            });
+        });
+    }
+
+    private void openLocalDocumentFile(File file) {
+        if (file == null || !file.exists()) return;
+        currentActiveDocumentFile = file;
+        currentSelectedFolder = file.getParentFile();
+        DocumentManager.DocumentContent doc = DocumentManager.readDocument(file);
+
+        if (currentTabIdx < 0 || currentTabIdx >= tabList.size()) {
+            createNewTab(file.toURI().toString());
+        }
+        Tab tab = tabList.get(currentTabIdx);
+        tab.currentUrl = (doc.url != null && !doc.url.isEmpty()) ? doc.url : file.toURI().toString();
+        tab.pageTitle = doc.title;
+        tab.addHistory(tab.currentUrl);
+        tab.saveCurrentState(doc.markdown, doc.title, new HashMap<>(), extractMarkdownHeadings(doc.markdown));
+
+        urlInput.setText(tab.currentUrl);
+        homePageContainer.setVisibility(View.GONE);
+        scrollView.setVisibility(View.VISIBLE);
+        renderMarkdownContent(tab);
+        scrollView.post(() -> scrollView.scrollTo(0, 0));
+        updateButtons();
+
+        if (drawerLayout != null) {
+            drawerLayout.closeDrawer(GravityCompat.START);
+        }
+        if (documentTreeAdapter != null) {
+            documentTreeAdapter.setSelectedFile(file);
+        }
+        Toast.makeText(this, "Opened: " + doc.title, Toast.LENGTH_SHORT).show();
+    }
+
+    private void showFileOptionsMenu(DocumentManager.DocItem item, View anchor) {
+        final File file = item.file;
+        com.google.android.material.bottomsheet.BottomSheetDialog sheet =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+        View sheetView = getLayoutInflater().inflate(R.layout.dialog_document_options_sheet, null);
+        sheet.setContentView(sheetView);
+
+        TextView tvTitle = sheetView.findViewById(R.id.tvSheetDocTitle);
+        if (tvTitle != null) tvTitle.setText(item.displayName);
+
+        View btnDuplicate = sheetView.findViewById(R.id.btnSheetDuplicate);
+        View btnMove = sheetView.findViewById(R.id.btnSheetMove);
+        View btnCopyLink = sheetView.findViewById(R.id.btnSheetCopyLink);
+        View btnShare = sheetView.findViewById(R.id.btnSheetShare);
+        View btnExport = sheetView.findViewById(R.id.btnSheetExport);
+        View btnRename = sheetView.findViewById(R.id.btnSheetRename);
+        View btnDelete = sheetView.findViewById(R.id.btnSheetDelete);
+
+        if (btnDuplicate != null) btnDuplicate.setOnClickListener(v -> {
+            sheet.dismiss();
+            File copy = DocumentManager.duplicateDocument(file);
+            if (copy != null) {
+                refreshDocumentsDrawer();
+                Toast.makeText(MainActivity.this, "Created copy: " + copy.getName(), Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(MainActivity.this, "Failed to duplicate file", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        if (btnMove != null) btnMove.setOnClickListener(v -> {
+            sheet.dismiss();
+            showMoveFileDialog(file);
+        });
+
+        if (btnCopyLink != null) btnCopyLink.setOnClickListener(v -> {
+            sheet.dismiss();
+            DocumentManager.DocumentContent doc = DocumentManager.readDocument(file);
+            String copyText = (doc.url != null && !doc.url.isEmpty()) ? doc.url : file.getAbsolutePath();
+            try {
+                android.content.ClipboardManager cb = (android.content.ClipboardManager) getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                if (cb != null) {
+                    cb.setPrimaryClip(android.content.ClipData.newPlainText("Document Link", copyText));
+                    Toast.makeText(MainActivity.this, "Copied to clipboard", Toast.LENGTH_SHORT).show();
+                }
+            } catch (Exception ignored) {}
+        });
+
+        if (btnShare != null) btnShare.setOnClickListener(v -> {
+            sheet.dismiss();
+            shareDocumentFile(file);
+        });
+
+        if (btnExport != null) btnExport.setOnClickListener(v -> {
+            sheet.dismiss();
+            exportDocumentFile(file);
+        });
+
+        if (btnRename != null) btnRename.setOnClickListener(v -> {
+            sheet.dismiss();
+            showRenameFileDialog(file);
+        });
+
+        if (btnDelete != null) btnDelete.setOnClickListener(v -> {
+            sheet.dismiss();
+            showDeleteFileDialog(file);
+        });
+
+        sheet.show();
+    }
+
+    private void showFolderOptionsMenu(DocumentManager.DocItem item, View anchor) {
+        final File folder = item.file;
+        currentSelectedFolder = folder;
+
+        com.google.android.material.bottomsheet.BottomSheetDialog sheet =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+        View sheetView = getLayoutInflater().inflate(R.layout.dialog_folder_options_sheet, null);
+        sheet.setContentView(sheetView);
+
+        TextView tvTitle = sheetView.findViewById(R.id.tvSheetFolderTitle);
+        if (tvTitle != null) tvTitle.setText("📁 " + item.displayName);
+
+        View btnNewNote = sheetView.findViewById(R.id.btnSheetFolderNewNote);
+        View btnNewSubfolder = sheetView.findViewById(R.id.btnSheetFolderNewSubfolder);
+        View btnRename = sheetView.findViewById(R.id.btnSheetFolderRename);
+        View btnDelete = sheetView.findViewById(R.id.btnSheetFolderDelete);
+
+        if (btnNewNote != null) btnNewNote.setOnClickListener(v -> {
+            sheet.dismiss();
+            showCreateNoteDialog(folder);
+        });
+
+        if (btnNewSubfolder != null) btnNewSubfolder.setOnClickListener(v -> {
+            sheet.dismiss();
+            showCreateFolderDialog(folder);
+        });
+
+        if (btnRename != null) btnRename.setOnClickListener(v -> {
+            sheet.dismiss();
+            showRenameFolderDialog(folder);
+        });
+
+        if (btnDelete != null) btnDelete.setOnClickListener(v -> {
+            sheet.dismiss();
+            showDeleteFolderDialog(folder);
+        });
+
+        sheet.show();
+    }
+
+    private void showMoveFileDialog(File sourceFile) {
+        if (sourceFile == null || !sourceFile.exists()) return;
+        List<File> allFolders = DocumentManager.getAllFolders(this);
+        File rootDir = DocumentManager.getDocumentsRoot(this);
+
+        String[] folderNames = new String[allFolders.size()];
+        for (int i = 0; i < allFolders.size(); i++) {
+            File f = allFolders.get(i);
+            if (f.getAbsolutePath().equals(rootDir.getAbsolutePath())) {
+                folderNames[i] = "📁 Documents (Root)";
+            } else {
+                String relative = f.getAbsolutePath().replace(rootDir.getAbsolutePath(), "").replace(File.separator, " / ");
+                folderNames[i] = "📁" + relative;
+            }
+        }
+
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Move '" + sourceFile.getName() + "' to:")
+                .setItems(folderNames, (dialog, which) -> {
+                    File targetFolder = allFolders.get(which);
+                    boolean moved = DocumentManager.moveFile(sourceFile, targetFolder);
+                    if (moved) {
+                        refreshDocumentsDrawer();
+                        Toast.makeText(MainActivity.this, "Moved to " + folderNames[which], Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(MainActivity.this, "Failed to move file", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void showCreateFolderDialog(File parentFolder) {
+        if (parentFolder == null || !parentFolder.exists()) {
+            parentFolder = DocumentManager.getDocumentsRoot(this);
+        }
+        final File finalParent = parentFolder;
+
+        EditText input = new EditText(this);
+        input.setHint("Folder name");
+        input.setSingleLine(true);
+        input.setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12));
+
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("New Folder")
+                .setMessage("Location: " + (finalParent.getName().equals("documents") ? "Root Documents" : finalParent.getName()))
+                .setView(input)
+                .setPositiveButton("Create", (dialog, which) -> {
+                    String folderName = input.getText().toString().trim();
+                    if (!folderName.isEmpty()) {
+                        boolean created = DocumentManager.createFolder(finalParent, folderName);
+                        if (created) {
+                            refreshDocumentsDrawer();
+                            Toast.makeText(MainActivity.this, "Folder '" + folderName + "' created", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(MainActivity.this, "Folder already exists or invalid name", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void showRenameFolderDialog(File folder) {
+        if (folder == null || !folder.exists()) return;
+
+        EditText input = new EditText(this);
+        input.setText(folder.getName());
+        input.setSelection(folder.getName().length());
+        input.setSingleLine(true);
+        input.setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12));
+
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Rename Folder")
+                .setView(input)
+                .setPositiveButton("Rename", (dialog, which) -> {
+                    String newName = input.getText().toString().trim();
+                    if (!newName.isEmpty() && !newName.equals(folder.getName())) {
+                        boolean renamed = DocumentManager.renameFolder(folder, newName);
+                        if (renamed) {
+                            refreshDocumentsDrawer();
+                            Toast.makeText(MainActivity.this, "Renamed to " + newName, Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(MainActivity.this, "Failed to rename folder", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void showDeleteFolderDialog(File folder) {
+        if (folder == null || !folder.exists()) return;
+
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Delete Folder")
+                .setMessage("Are you sure you want to delete '" + folder.getName() + "' and all files inside it?")
+                .setPositiveButton("Delete", (dialog, which) -> {
+                    boolean deleted = DocumentManager.deleteFolder(folder);
+                    if (deleted) {
+                        refreshDocumentsDrawer();
+                        Toast.makeText(MainActivity.this, "Folder deleted", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(MainActivity.this, "Failed to delete folder", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void showCreateNoteDialog(File parentFolder) {
+        if (parentFolder == null || !parentFolder.exists()) {
+            parentFolder = DocumentManager.getDocumentsRoot(this);
+        }
+        final File finalParent = parentFolder;
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dpToPx(18), dpToPx(12), dpToPx(18), dpToPx(8));
+
+        EditText titleInput = new EditText(this);
+        titleInput.setHint("Document name (e.g. Quantum Computing)");
+        titleInput.setSingleLine(true);
+        titleInput.setPadding(dpToPx(12), dpToPx(12), dpToPx(12), dpToPx(12));
+        titleInput.setTextColor(android.graphics.Color.WHITE);
+        titleInput.setHintTextColor(android.graphics.Color.parseColor("#7A7A85"));
+        layout.addView(titleInput);
+
+        View spacer = new View(this);
+        spacer.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dpToPx(10)));
+        layout.addView(spacer);
+
+        EditText urlInputEdit = new EditText(this);
+        urlInputEdit.setHint("Web link / URL (optional, e.g. wikipedia.org/...)");
+        urlInputEdit.setSingleLine(true);
+        urlInputEdit.setPadding(dpToPx(12), dpToPx(12), dpToPx(12), dpToPx(12));
+        urlInputEdit.setTextColor(android.graphics.Color.WHITE);
+        urlInputEdit.setHintTextColor(android.graphics.Color.parseColor("#7A7A85"));
+        layout.addView(urlInputEdit);
+
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Create Document")
+                .setMessage("Folder: " + (finalParent.getName().equals("documents") ? "Root Documents" : finalParent.getName()))
+                .setView(layout)
+                .setPositiveButton("Generate & Save", (dialog, which) -> {
+                    String title = titleInput.getText().toString().trim();
+                    String link = urlInputEdit.getText().toString().trim();
+                    generateAndSaveDocument(finalParent, title, link);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void generateAndSaveDocument(File targetFolder, String title, String rawUrl) {
+        if (rawUrl != null && !rawUrl.isEmpty()) {
+            String url = rawUrl;
+            if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                url = "https://" + url;
+            }
+            final String finalUrl = url;
+            Toast.makeText(this, "Fetching page & converting to Markdown...", Toast.LENGTH_SHORT).show();
+
+            executor.execute(() -> {
+                try {
+                    HttpURLConnection conn = (HttpURLConnection) new URL(finalUrl).openConnection();
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
+                    conn.setConnectTimeout(15000);
+                    conn.setReadTimeout(20000);
+                    conn.setInstanceFollowRedirects(true);
+
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        sb.append(line).append("\n");
+                    }
+                    reader.close();
+
+                    HtmlCleaner.Config cleanerConfig = HtmlCleaner.Config.defaultConfig();
+                    cleanerConfig.baseUrl = finalUrl;
+                    HtmlCleaner.Result cleanResult = HtmlCleaner.clean(sb.toString(), cleanerConfig);
+                    HtmlToMarkdownConverter.MarkdownDocument mdDoc = HtmlToMarkdownConverter.convert(cleanResult.html, finalUrl);
+
+                    String finalDocTitle = (title != null && !title.isEmpty()) ? title : mdDoc.title;
+                    if (finalDocTitle == null || finalDocTitle.isEmpty()) finalDocTitle = "Web Note";
+
+                    File savedFile = DocumentManager.saveDocument(MainActivity.this, targetFolder, finalDocTitle, finalUrl, mdDoc.markdown);
+
+                    runOnUiThread(() -> {
+                        if (savedFile != null) {
+                            refreshDocumentsDrawer();
+                            openLocalDocumentFile(savedFile);
+                            Toast.makeText(MainActivity.this, "Generated & Saved: " + savedFile.getName(), Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(MainActivity.this, "Failed to save generated document", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                } catch (Exception e) {
+                    runOnUiThread(() -> {
+                        String finalDocTitle = (title != null && !title.isEmpty()) ? title : "Untitled";
+                        File savedFile = DocumentManager.saveDocument(MainActivity.this, targetFolder, finalDocTitle, finalUrl, "# " + finalDocTitle + "\n\nSource: " + finalUrl + "\n\n(Could not fetch content: " + e.getMessage() + ")");
+                        if (savedFile != null) {
+                            refreshDocumentsDrawer();
+                            openLocalDocumentFile(savedFile);
+                            Toast.makeText(MainActivity.this, "Saved placeholder (Offline)", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            });
+        } else {
+            String finalDocTitle = (title != null && !title.isEmpty()) ? title : "Untitled Note";
+            File newFile = DocumentManager.saveDocument(this, targetFolder, finalDocTitle, "", "# " + finalDocTitle + "\n\n");
+            if (newFile != null) {
+                refreshDocumentsDrawer();
+                openLocalDocumentFile(newFile);
+                Toast.makeText(this, "Created: " + newFile.getName(), Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "Failed to create note", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void showRenameFileDialog(File file) {
+        if (file == null || !file.exists()) return;
+
+        String baseName = file.getName();
+        if (baseName.toLowerCase().endsWith(".md")) {
+            baseName = baseName.substring(0, baseName.length() - 3);
+        }
+
+        EditText input = new EditText(this);
+        input.setText(baseName);
+        input.setSelection(baseName.length());
+        input.setSingleLine(true);
+        input.setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12));
+
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Rename Note")
+                .setView(input)
+                .setPositiveButton("Rename", (dialog, which) -> {
+                    String newName = input.getText().toString().trim();
+                    if (!newName.isEmpty()) {
+                        boolean renamed = DocumentManager.renameFile(file, newName);
+                        if (renamed) {
+                            refreshDocumentsDrawer();
+                            Toast.makeText(MainActivity.this, "Renamed to " + newName, Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(MainActivity.this, "Failed to rename file", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void showDeleteFileDialog(File file) {
+        if (file == null || !file.exists()) return;
+
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Delete Note")
+                .setMessage("Delete '" + file.getName() + "'?")
+                .setPositiveButton("Delete", (dialog, which) -> {
+                    boolean deleted = DocumentManager.deleteFile(file);
+                    if (deleted) {
+                        if (currentActiveDocumentFile != null && currentActiveDocumentFile.getAbsolutePath().equals(file.getAbsolutePath())) {
+                            currentActiveDocumentFile = null;
+                        }
+                        refreshDocumentsDrawer();
+                        Toast.makeText(MainActivity.this, "Note deleted", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(MainActivity.this, "Failed to delete note", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void shareDocumentFile(File file) {
+        Intent shareIntent = DocumentManager.createShareIntent(this, file);
+        if (shareIntent != null) {
+            try {
+                startActivity(shareIntent);
+            } catch (Exception e) {
+                Toast.makeText(this, "Unable to share: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void exportDocumentFile(File file) {
+        boolean exported = DocumentManager.exportToDownloads(this, file);
+        if (exported) {
+            Toast.makeText(this, "Exported to Downloads/Velocity/" + file.getName(), Toast.LENGTH_LONG).show();
+        } else {
+            // Fallback share chooser
+            shareDocumentFile(file);
+        }
+    }
+
+    private void showSortOrderPicker(View anchor) {
+        String[] orders = new String[]{
+                "Name (A to Z)",
+                "Name (Z to A)",
+                "Date Modified (Newest first)",
+                "Date Modified (Oldest first)"
+        };
+
+        int currentIdx = 0;
+        switch (currentSortOrder) {
+            case NAME_DESC: currentIdx = 1; break;
+            case DATE_DESC: currentIdx = 2; break;
+            case DATE_ASC: currentIdx = 3; break;
+            case NAME_ASC: default: currentIdx = 0; break;
+        }
+
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Sort Documents")
+                .setSingleChoiceItems(orders, currentIdx, (dialog, which) -> {
+                    dialog.dismiss();
+                    switch (which) {
+                        case 0: currentSortOrder = DocumentManager.SortOrder.NAME_ASC; break;
+                        case 1: currentSortOrder = DocumentManager.SortOrder.NAME_DESC; break;
+                        case 2: currentSortOrder = DocumentManager.SortOrder.DATE_DESC; break;
+                        case 3: currentSortOrder = DocumentManager.SortOrder.DATE_ASC; break;
+                    }
+                    refreshDocumentsDrawer();
+                })
+                .show();
+    }
+
+    private void showVaultSettingsDialog() {
+        DocumentManager.LibraryStats stats = DocumentManager.getStats(this);
+        File rootDir = DocumentManager.getDocumentsRoot(this);
+
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Documents Library")
+                .setMessage("Vault location:\n" + rootDir.getAbsolutePath() + "\n\nTotal: " + stats.fileCount + " files in " + stats.folderCount + " folders")
+                .setPositiveButton("Open External .md", (d, w) -> pickLocalMarkdownFile())
+                .setNeutralButton("Refresh", (d, w) -> refreshDocumentsDrawer())
+                .setNegativeButton("Close", null)
+                .show();
     }
 
     private void showBookmarksSheet() {
@@ -2110,7 +2792,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         if (itemOpenMd != null) itemOpenMd.setOnClickListener(v -> { dialog.dismiss(); pickLocalMarkdownFile(); });
-        if (itemSavedDocs != null) itemSavedDocs.setOnClickListener(v -> { dialog.dismiss(); showBookmarksSheet(); });
+        if (itemSavedDocs != null) itemSavedDocs.setOnClickListener(v -> { dialog.dismiss(); openDocumentsDrawer(); });
         if (itemHistory != null) itemHistory.setOnClickListener(v -> { dialog.dismiss(); showHistorySheet(); });
         if (itemTabs != null) itemTabs.setOnClickListener(v -> { dialog.dismiss(); showTabsSheet(); });
         if (itemCloseTab != null) itemCloseTab.setOnClickListener(v -> { dialog.dismiss(); closeCurrentTab(); });
