@@ -269,12 +269,15 @@ public final class HtmlCleaner {
             Element p = new Element("p");
             if (config.preserveMediaLinks && !src.isEmpty()) {
                 Element link = new Element("a").attr("href", src);
-                link.text("[Video Link: click to watch]");
+                link.text("[Video: " + firstNonEmpty(video.attr("title"), video.attr("aria-label"), "Watch Video") + "]");
                 p.appendChild(link);
-            } else {
-                p.text("[Video Component]");
+                video.replaceWith(p);
+            } else if (!src.isEmpty()) {
+                Element link = new Element("a").attr("href", src);
+                link.text("[Video Link]");
+                p.appendChild(link);
+                video.replaceWith(p);
             }
-            video.replaceWith(p);
         }
 
         for (Element audio : new ArrayList<>(document.select("audio"))) {
@@ -282,25 +285,31 @@ public final class HtmlCleaner {
             Element p = new Element("p");
             if (config.preserveMediaLinks && !src.isEmpty()) {
                 Element link = new Element("a").attr("href", src);
-                link.text("[Audio Link: click to listen]");
+                link.text("[Audio: " + firstNonEmpty(audio.attr("title"), audio.attr("aria-label"), "Listen Audio") + "]");
                 p.appendChild(link);
-            } else {
-                p.text("[Audio Component]");
+                audio.replaceWith(p);
+            } else if (!src.isEmpty()) {
+                Element link = new Element("a").attr("href", src);
+                link.text("[Audio Link]");
+                p.appendChild(link);
+                audio.replaceWith(p);
             }
-            audio.replaceWith(p);
         }
 
         for (Element iframe : new ArrayList<>(document.select("iframe"))) {
             String src = iframe.attr("src");
-            Element p = new Element("p");
-            if (config.preserveFrameLinks && !src.isEmpty()) {
-                Element link = new Element("a").attr("href", src);
-                link.text("[Embedded Content Link]");
-                p.appendChild(link);
-            } else {
-                p.text("[Embedded Content]");
+            String title = firstNonEmpty(iframe.attr("title"), iframe.attr("name"), iframe.attr("aria-label"));
+            if (!iframe.children().isEmpty()) {
+                // Keep inner contents if present
+                continue;
             }
-            iframe.replaceWith(p);
+            if (config.preserveFrameLinks && src != null && !src.isEmpty()) {
+                Element p = new Element("p");
+                Element link = new Element("a").attr("href", src);
+                link.text("[Embedded: " + (!title.isEmpty() ? title : "View Link") + "]");
+                p.appendChild(link);
+                iframe.replaceWith(p);
+            }
         }
     }
 
@@ -313,21 +322,22 @@ public final class HtmlCleaner {
         for (Element svg : new ArrayList<>(document.select("svg"))) {
             String accText = "";
             if (config.preserveSvgAccessibilityText) {
-                accText = firstNonEmpty(svg.attr("aria-label"), svg.attr("title"), svg.select("title").text());
+                accText = firstNonEmpty(svg.attr("aria-label"), svg.attr("title"), svg.select("title").text(), svg.select("text").text());
             }
-            Element span = new Element("span");
-            span.text(!accText.isEmpty() ? "[" + accText + "]" : "[Icon]");
-            svg.replaceWith(span);
+            if (!accText.isEmpty()) {
+                Element span = new Element("span");
+                span.text(accText);
+                svg.replaceWith(span);
+            }
         }
     }
 
     private static void transformCanvas(Document document, Config config) {
-        if (!config.preserveCanvasPlaceholder) {
-            document.select("canvas").remove();
-            return;
-        }
         for (Element canvas : new ArrayList<>(document.select("canvas"))) {
-            canvas.replaceWith(new Element("span").text("[Drawing Canvas]"));
+            String label = firstNonEmpty(canvas.attr("aria-label"), canvas.attr("title"));
+            if (!label.isEmpty()) {
+                canvas.replaceWith(new Element("span").text("[" + label + "]"));
+            }
         }
     }
 

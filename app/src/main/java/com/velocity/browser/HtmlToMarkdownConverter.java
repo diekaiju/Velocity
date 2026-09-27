@@ -107,19 +107,15 @@ public final class HtmlToMarkdownConverter {
 
     private static void removeUnwantedElements(Document document) {
         String selector =
-                "script, style, noscript, template, svg, canvas, " +
-                "iframe, object, embed, video, audio, source, track, " +
-                "form, dialog, [hidden], [aria-hidden='true'], " +
+                "script:not([type*='math']):not([type*='tex']), " +
+                "style, noscript, template, " +
                 ".advertisement, .advert, .ads, .ad, .adsbygoogle, " +
-                ".cookie, .cookies, .cookie-banner, .popup, .modal, " +
-                ".newsletter, .social-share, .share-buttons, " +
-                ".comments, .comment-section, nav, footer";
+                ".cookie-banner, .cookie-consent, .consent-banner, .popup-ad";
 
         document.select(selector).remove();
 
-        // Remove elements that are commonly used for tracking pixels.
-        document.select("img[width='1'][height='1'], img[style*='display:none']")
-                .remove();
+        // Remove 1x1 tracking pixels
+        document.select("img[width='1'][height='1'], img[style*='display:none']").remove();
     }
 
     private static String extractTitle(Document document) {
@@ -139,40 +135,7 @@ public final class HtmlToMarkdownConverter {
     }
 
     private static Element selectMainContent(Document document) {
-        Element article = document.selectFirst("article");
-
-        if (article != null && article.text().trim().length() > 100) {
-            return article;
-        }
-
-        Element main = document.selectFirst("main");
-
-        if (main != null && main.text().trim().length() > 100) {
-            return main;
-        }
-
-        String[] selectors = {
-                "[role=main]",
-                "#content",
-                "#main-content",
-                "#main",
-                ".content",
-                ".main-content",
-                ".article-content",
-                ".post-content",
-                ".entry-content",
-                ".article-body",
-                ".post-body"
-        };
-
-        for (String selector : selectors) {
-            Element candidate = document.selectFirst(selector);
-
-            if (candidate != null && candidate.text().trim().length() > 100) {
-                return candidate;
-            }
-        }
-
+        // Return full document body to never discard questions, answers, comments, or discussions
         return document.body() != null
                 ? document.body()
                 : document;
@@ -208,6 +171,13 @@ public final class HtmlToMarkdownConverter {
         }
 
         Element element = (Element) node;
+
+        // Check for KaTeX, MathJax, or LaTeX math formulas
+        if (element.hasClass("katex") || element.hasClass("MathJax") || element.hasClass("katex-display") || element.hasClass("MathJax_Display")) {
+            renderMath(element, context);
+            return;
+        }
+
         String tag = element.tagName().toLowerCase(Locale.ROOT);
 
         switch (tag) {
@@ -264,6 +234,19 @@ public final class HtmlToMarkdownConverter {
 
             case "mark":
                     renderInlineWrapped(element, context, "==", listDepth);
+                    break;
+
+            case "sub":
+                    renderInlineWrapped(element, context, "~", listDepth);
+                    break;
+
+            case "sup":
+                    renderInlineWrapped(element, context, "^", listDepth);
+                    break;
+
+            case "math":
+            case "annotation":
+                    renderMath(element, context);
                     break;
 
             case "code":
@@ -421,10 +404,32 @@ public final class HtmlToMarkdownConverter {
         context.output.append(
                 headingContent.toString().trim()
         );
-        if (id != null && !id.isEmpty()) {
-            context.output.append(" {#").append(id).append("}");
-        }
         context.output.append("\n\n");
+    }
+
+    private static void renderMath(Element element, RenderContext context) {
+        Element texAnnotation = element.selectFirst("annotation[encoding*='tex'], annotation[encoding*='latex']");
+        String formula = "";
+        if (texAnnotation != null) {
+            formula = texAnnotation.text().trim();
+        } else {
+            Element mathTexScript = element.selectFirst("script[type*='math'], script[type*='tex']");
+            if (mathTexScript != null) {
+                formula = mathTexScript.data().trim();
+            } else {
+                formula = element.text().trim();
+            }
+        }
+
+        if (!formula.isEmpty()) {
+            boolean isBlock = element.hasClass("katex-display") || element.hasClass("MathJax_Display") || "div".equalsIgnoreCase(element.tagName());
+            if (isBlock) {
+                ensureBlankLines(context.output, 1);
+                context.output.append("$$\n").append(formula).append("\n$$\n\n");
+            } else {
+                context.output.append(" $").append(formula).append("$ ");
+            }
+        }
     }
 
     private static void renderParagraph(
@@ -432,11 +437,11 @@ public final class HtmlToMarkdownConverter {
             RenderContext context,
             int listDepth
     ) {
-        ensureBlankLines(context.output, 2);
+        ensureBlankLines(context.output, 1);
 
         renderChildren(element, context, listDepth);
 
-        ensureBlankLines(context.output, 2);
+        ensureBlankLines(context.output, 1);
     }
 
     private static void renderInlineWrapped(
@@ -1327,6 +1332,7 @@ public final class HtmlToMarkdownConverter {
                 .replace("\r\n", "\n")
                 .replace('\r', '\n')
                 .replaceAll("[ \\t]+\\n", "\n")
+                .replaceAll("(?m)^[ \\t]+$", "")
                 .replaceAll("\\n{3,}", "\n\n")
                 .trim();
 

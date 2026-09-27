@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#16161A"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="20dp">
+
+    <!-- Top Drag / Header Row -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_toStartOf="@+id/btnFloatingWebviewClose"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvFloatingWebviewTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Web Engine Resolver"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvFloatingWebviewUrl"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Resolving Cloudflare / JavaScript..."
+                android:textColor="#8E8E93"
+                android:textSize="11.5sp"
+                android:singleLine="true"
+                android:ellipsize="middle"
+                android:layout_marginTop="2dp" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/btnFloatingWebviewClose"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:src="@drawable/ic_close_m3"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="#CAC4D0"
+            android:contentDescription="Close" />
+    </RelativeLayout>
+
+    <!-- Loading Bar -->
+    <ProgressBar
+        android:id="@+id/floatingWebviewProgress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:progressTint="#A8C7FA"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Floating WebView Frame Container -->
+    <FrameLayout
+        android:id="@+id/floatingWebviewFrame"
+        android:layout_width="match_parent"
+        android:layout_height="360dp"
+        android:background="#000000"
+        android:clipToPadding="true">
+
+        <WebView
+            android:id="@+id/floatingWebView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </FrameLayout>
+
+    <!-- Bottom Actions & Extraction -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="12dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Solve captcha if prompted"
+            android:textColor="#8E8E93"
+            android:textSize="11sp"
+            android:layout_marginEnd="8dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnFloatingWebviewExtract"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:text="Extract &amp; View Native"
+            android:textSize="12.5sp"
+            android:backgroundTint="#A8C7FA"
+            android:textColor="#062E6F"
+            app:cornerRadius="14dp" />
+    </LinearLayout>
+
+</LinearLayout>

@@ -234,6 +234,41 @@
                 android:textColor="#FFFFFF" />
         </LinearLayout>
 
+        <!-- Divider line -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#313238" />
+
+        <!-- 7. Web Engine / Cloudflare Resolver -->
+        <LinearLayout
+            android:id="@+id/menuItemWebEngine"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?android:attr/selectableItemBackground">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_language_web"
+                android:tint="#A8C7FA"
+                android:layout_marginEnd="16dp" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Load with Web Engine (Cloudflare)"
+                android:textSize="14.5sp"
+                android:textColor="#FFFFFF" />
+        </LinearLayout>
+
     </LinearLayout>
 
 </LinearLayout>

@@ -51,6 +51,12 @@ import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import android.webkit.WebChromeClient;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import org.json.JSONTokener;
+
 public class MainActivity extends AppCompatActivity {
 
     public interface LocationCallback {
@@ -1591,12 +1597,42 @@ public class MainActivity extends AppCompatActivity {
                     }
                     in.close();
                     response = content.toString();
+
+                    String lowerResp = response.toLowerCase(Locale.ROOT);
+                    if (lowerResp.contains("challenges.cloudflare.com") ||
+                        lowerResp.contains("cf-browser-verification") ||
+                        lowerResp.contains("just a moment...") ||
+                        lowerResp.contains("checking your browser before accessing") ||
+                        lowerResp.contains("attention required! | cloudflare") ||
+                        lowerResp.contains("ddos protection by cloudflare") ||
+                        (lowerResp.contains("cloudflare") && lowerResp.contains("turnstile"))) {
+
+                        response = "<h3>🛡️ Cloudflare Protection Detected</h3>" +
+                                   "<p>This website (" + finalUrl + ") requires Cloudflare bot verification or JavaScript execution.</p>" +
+                                   "<p><a href=\"action://load_web_engine\">👉 <b>Solve &amp; Load with Web Engine</b></a></p>" +
+                                   "<hr/>" +
+                                   "<p><a href=\"action://retry_load\">🔄 Retry Standard Load</a> &nbsp;|&nbsp; <a href=\"action://open_external\">📱 Open in External Browser</a></p>";
+                    }
+                } else if (responseCode == 403 || responseCode == 503 || responseCode == 429) {
+                    response = "<h3>🛡️ Access Restricted (HTTP " + responseCode + ")</h3>" +
+                               "<p>The server returned HTTP " + responseCode + ". This typically occurs when Cloudflare or anti-bot protection is active.</p>" +
+                               "<p><a href=\"action://load_web_engine\">👉 <b>Solve &amp; Load with Web Engine</b></a></p>" +
+                               "<hr/>" +
+                               "<p><a href=\"action://retry_load\">🔄 Retry Standard Load</a> &nbsp;|&nbsp; <a href=\"action://open_external\">📱 Open in External Browser</a></p>";
                 } else {
-                    response = "<h3>Error " + responseCode + "</h3><p>Unable to load the requested page.</p>";
+                    response = "<h3>Error " + responseCode + "</h3>" +
+                               "<p>Unable to load the requested page (HTTP " + responseCode + ").</p>" +
+                               "<p><a href=\"action://load_web_engine\">👉 <b>Try loading with Web Engine</b></a></p>" +
+                               "<hr/>" +
+                               "<p><a href=\"action://retry_load\">🔄 Retry Standard Load</a> &nbsp;|&nbsp; <a href=\"action://open_external\">📱 Open in External Browser</a></p>";
                 }
                 conn.disconnect();
             } catch (Exception e) {
-                response = "<h3>Connection Error</h3><p>" + e.getMessage() + "</p>";
+                response = "<h3>Connection Notice</h3>" +
+                           "<p>" + e.getMessage() + "</p>" +
+                           "<p><a href=\"action://load_web_engine\">👉 <b>Try loading with Web Engine</b></a></p>" +
+                           "<hr/>" +
+                           "<p><a href=\"action://retry_load\">🔄 Retry</a> &nbsp;|&nbsp; <a href=\"action://open_external\">📱 Open in External Browser</a></p>";
             }
 
             final String htmlContent = response;
@@ -2764,6 +2800,21 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        View itemWebEngine = sheetView.findViewById(R.id.menuItemWebEngine);
+        if (itemWebEngine != null) {
+            itemWebEngine.setOnClickListener(v -> {
+                dialog.dismiss();
+                if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
+                    Tab tab = tabList.get(currentTabIdx);
+                    if (!"home".equals(tab.currentUrl)) {
+                        loadWithWebEngine(tab.currentUrl);
+                    } else {
+                        Toast.makeText(MainActivity.this, "Enter a URL first", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            });
+        }
+
         dialog.show();
     }
 
@@ -2841,6 +2892,30 @@ public class MainActivity extends AppCompatActivity {
 
     private void handleLinkClick(String href, Tab tab) {
         if (href == null || href.isEmpty()) return;
+
+        if (href.startsWith("action://")) {
+            if (href.contains("load_web_engine")) {
+                if (tab != null && tab.currentUrl != null && !tab.currentUrl.equals("home")) {
+                    loadWithWebEngine(tab.currentUrl);
+                } else if (urlInput != null && urlInput.getText() != null) {
+                    loadWithWebEngine(urlInput.getText().toString());
+                }
+                return;
+            }
+            if (href.contains("retry_load")) {
+                if (tab != null && tab.currentUrl != null && !tab.currentUrl.equals("home")) {
+                    loadUrl(tab.currentUrl, false);
+                }
+                return;
+            }
+            if (href.contains("open_external")) {
+                if (tab != null && tab.currentUrl != null && !tab.currentUrl.equals("home")) {
+                    openInSystem(tab.currentUrl, null);
+                }
+                return;
+            }
+        }
+
         if (href.startsWith("#")) {
             String id = href.substring(1);
             if (!id.isEmpty()) {
@@ -3259,6 +3334,221 @@ public class MainActivity extends AppCompatActivity {
             } catch (Exception ignored) {}
         }
         super.onDestroy();
+    }
+
+    public void loadWithWebEngine(String targetUrl) {
+        if (targetUrl == null || targetUrl.trim().isEmpty() || targetUrl.equals("home")) {
+            Toast.makeText(this, "No valid URL to load", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        final String finalUrl = targetUrl.startsWith("http://") || targetUrl.startsWith("https://") 
+                ? targetUrl 
+                : "https://" + targetUrl;
+
+        try {
+            com.google.android.material.bottomsheet.BottomSheetDialog sheet =
+                    new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+            View sheetView = getLayoutInflater().inflate(R.layout.dialog_floating_webview, null);
+            sheet.setContentView(sheetView);
+
+            sheet.setOnShowListener(dialog -> {
+                com.google.android.material.bottomsheet.BottomSheetDialog d = (com.google.android.material.bottomsheet.BottomSheetDialog) dialog;
+                android.widget.FrameLayout bottomSheet = d.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+                if (bottomSheet != null) {
+                    com.google.android.material.bottomsheet.BottomSheetBehavior<android.widget.FrameLayout> behavior =
+                            com.google.android.material.bottomsheet.BottomSheetBehavior.from(bottomSheet);
+                    behavior.setState(com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED);
+                    behavior.setSkipCollapsed(true);
+                }
+            });
+
+            TextView tvUrl = sheetView.findViewById(R.id.tvFloatingWebviewUrl);
+            ProgressBar webProgress = sheetView.findViewById(R.id.floatingWebviewProgress);
+            View btnClose = sheetView.findViewById(R.id.btnFloatingWebviewClose);
+            View btnExtract = sheetView.findViewById(R.id.btnFloatingWebviewExtract);
+            WebView webView = sheetView.findViewById(R.id.floatingWebView);
+
+            if (tvUrl != null) {
+                tvUrl.setText(finalUrl);
+            }
+
+            if (webView == null) {
+                Toast.makeText(this, "System WebView is not available on this device", Toast.LENGTH_LONG).show();
+                sheet.dismiss();
+                return;
+            }
+
+            WebSettings settings = webView.getSettings();
+            settings.setJavaScriptEnabled(true);
+            settings.setDomStorageEnabled(true);
+            settings.setDatabaseEnabled(true);
+            settings.setLoadWithOverviewMode(true);
+            settings.setUseWideViewPort(true);
+            settings.setUserAgentString("Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
+
+            final boolean[] extracted = {false};
+
+            webView.setWebChromeClient(new WebChromeClient() {
+                @Override
+                public void onProgressChanged(WebView view, int newProgress) {
+                    if (webProgress != null) {
+                        webProgress.setProgress(newProgress);
+                        webProgress.setVisibility(newProgress < 100 ? View.VISIBLE : View.GONE);
+                    }
+                }
+
+                @Override
+                public void onReceivedTitle(WebView view, String title) {
+                    super.onReceivedTitle(view, title);
+                    if (tvUrl != null && title != null && !title.isEmpty()) {
+                        tvUrl.setText(title + " • " + finalUrl);
+                    }
+                }
+            });
+
+            webView.setWebViewClient(new WebViewClient() {
+                @Override
+                public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+                    if (webProgress != null) webProgress.setVisibility(View.VISIBLE);
+                }
+
+                @Override
+                public void onPageFinished(WebView view, String url) {
+                    if (webProgress != null) webProgress.setVisibility(View.GONE);
+                    String currentTitle = view.getTitle();
+                    boolean isChallenge = currentTitle != null && (
+                            currentTitle.toLowerCase(Locale.ROOT).contains("just a moment") ||
+                            currentTitle.toLowerCase(Locale.ROOT).contains("checking your browser") ||
+                            currentTitle.toLowerCase(Locale.ROOT).contains("cloudflare")
+                    );
+
+                    // If not a challenge page, auto-extract after a brief interval for smooth user experience
+                    if (!isChallenge && !extracted[0]) {
+                        webView.postDelayed(() -> {
+                            if (!extracted[0] && sheet.isShowing() && !isFinishing() && !isDestroyed()) {
+                                extracted[0] = true;
+                                extractAndProcessHtmlFromWebView(webView, finalUrl, sheet);
+                            }
+                        }, 2500);
+                    }
+                }
+            });
+
+            if (btnClose != null) {
+                btnClose.setOnClickListener(v -> sheet.dismiss());
+            }
+
+            if (btnExtract != null) {
+                btnExtract.setOnClickListener(v -> {
+                    extracted[0] = true;
+                    extractAndProcessHtmlFromWebView(webView, finalUrl, sheet);
+                });
+            }
+
+            sheet.setOnDismissListener(dialog -> {
+                try {
+                    webView.stopLoading();
+                    webView.loadUrl("about:blank");
+                    webView.destroy();
+                } catch (Throwable ignored) {}
+            });
+
+            webView.loadUrl(finalUrl);
+            sheet.show();
+
+        } catch (Throwable t) {
+            // Safely prevent any crashes if WebView implementation is missing or throws
+            Toast.makeText(this, "System WebView is not available on this device", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void extractAndProcessHtmlFromWebView(WebView webView, String currentUrl, com.google.android.material.bottomsheet.BottomSheetDialog dialogToDismiss) {
+        if (webView == null) return;
+        try {
+            webView.evaluateJavascript(
+                    "(function() { return document.documentElement ? document.documentElement.outerHTML : (document.body ? document.body.innerHTML : ''); })();",
+                    value -> {
+                        if (value == null || value.equals("null") || value.isEmpty()) {
+                            Toast.makeText(MainActivity.this, "Could not extract page HTML yet. Please wait for page to load.", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        String html = value;
+                        try {
+                            Object parsed = new org.json.JSONTokener(value).nextValue();
+                            if (parsed instanceof String) {
+                                html = (String) parsed;
+                            }
+                        } catch (Exception ignored) {}
+
+                        final String extractedHtml = html;
+                        runOnUiThread(() -> {
+                            if (dialogToDismiss != null && dialogToDismiss.isShowing()) {
+                                try {
+                                    dialogToDismiss.dismiss();
+                                } catch (Exception ignored) {}
+                            }
+                            processExtractedWebEngineHtml(currentUrl, extractedHtml);
+                        });
+                    }
+            );
+        } catch (Throwable t) {
+            Toast.makeText(this, "Failed to extract page HTML: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void processExtractedWebEngineHtml(String url, String rawHtml) {
+        if (rawHtml == null || rawHtml.trim().isEmpty()) {
+            Toast.makeText(this, "Extracted empty HTML content", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        runOnUiThread(() -> {
+            progressBar.setVisibility(View.VISIBLE);
+            progressBar.setProgress(30);
+            Toast.makeText(this, "Rendering page in native Markdown...", Toast.LENGTH_SHORT).show();
+        });
+
+        executor.execute(() -> {
+            try {
+                HtmlCleaner.Config config = HtmlCleaner.Config.defaultConfig();
+                config.baseUrl = url;
+                String cleanedHtml = HtmlCleaner.clean(rawHtml, config).html;
+
+                HtmlToMarkdownConverter.MarkdownDocument mdDoc = HtmlToMarkdownConverter.convert(cleanedHtml, url);
+
+                runOnUiThread(() -> {
+                    if (currentTabIdx >= 0 && currentTabIdx < tabList.size()) {
+                        Tab tab = tabList.get(currentTabIdx);
+                        tab.currentUrl = url;
+                        tab.saveCurrentState(mdDoc.markdown, mdDoc.title, new HashMap<>(), mdDoc.headings);
+                        HistoryManager.addHistory(MainActivity.this, mdDoc.title, url);
+
+                        homePageContainer.setVisibility(View.GONE);
+                        scrollView.setVisibility(View.VISIBLE);
+                        renderMarkdownContent(tab);
+
+                        if (urlInput != null) urlInput.setText(url);
+                        scrollView.post(() -> scrollView.scrollTo(0, 0));
+
+                        if (tabContainer != null && currentTabIdx < tabContainer.getChildCount()) {
+                            TextView tv = (TextView) tabContainer.getChildAt(currentTabIdx);
+                            if (tv != null) {
+                                tv.setText(tab.pageTitle);
+                            }
+                        }
+                    }
+                    progressBar.setVisibility(View.GONE);
+                    updateButtons();
+                    Toast.makeText(MainActivity.this, "Loaded: " + mdDoc.title, Toast.LENGTH_SHORT).show();
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+                    Toast.makeText(MainActivity.this, "Conversion error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        });
     }
 
     private int dpToPx(float dp) {
