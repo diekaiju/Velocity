@@ -3,6 +3,7 @@
 **Velocity** is an open-source, distraction-free native Android browser and article reconstruction engine built for fast, clean, offline-capable reading.
 
 ---
+[![downloads](https://img.shields.io/github/downloads/diekaiju/Velocity/total?logo=github&label=GitHub%20Downloads)](https://github.com/diekaiju/Velocity/releases)
 
 ## 📱 Screenshots
 
